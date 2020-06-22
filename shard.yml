@@ -1,0 +1,17 @@
+name: luck
+version: 0.1.0
+
+authors:
+  - george  george@1w1g.com
+dependencies:
+  sqlite3:
+    github: crystal-lang/crystal-sqlite3
+    branch: master
+targets:
+  luck:
+    main: src/luck.cr
+
+
+crystal: 0.34.0
+
+license: MIT
