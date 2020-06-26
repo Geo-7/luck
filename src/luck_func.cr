@@ -37,19 +37,22 @@ class APIParser
     end
     def create_table(table_name, http_method, http_body)
       body = http_body.not_nil!
-      o = JSON.parse(body.gets_to_end)
-      table_str =""
-      o.as_h.each do |k|
-        table_str += " " + k[0].to_s + " " + k[1].to_s
-      end
+      table_json = JSON.parse(body.gets_to_end)
       case http_method
       when "POST"
-        query ="CREATE TABLE #{table_name}(ID INTEGER PRIMARY KEY,#{table_str})"
+        query = make_create_table_str(table_name, table_json)
         db = DB.open("sqlite3://./src/object.db")
         db.exec(query)
       else
         ...
       end
+    end
+    def make_create_table_str(table_name,table_json)
+      table_str =""
+      table_json.as_h.each do |k|
+        table_str += ", " + k[0].to_s + " " + k[1].to_s
+      end
+      "CREATE TABLE #{table_name}(ID INTEGER PRIMARY KEY#{table_str})"
     end
     def crud_object(table_name, obj_value, http_method, http_body)
       name =""
