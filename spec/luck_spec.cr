@@ -15,8 +15,15 @@ describe APIParser do
       json_table = JSON.parse(json_str)
       str = ap.make_create_table_str("Monkey",json_table)
       str.should eq "CREATE TABLE Monkey(ID INTEGER PRIMARY KEY, legs string, att string, hands INTEGER)"
-    end
-    
+    end 
+  end
+end
+
+describe "POST /object/table_name" do
+  it "POST a table json and make a table" do
+    data = %({"name": "string", "att": "string"})
+    response = HTTP::Client.post("127.0.0.1:5800/object/mov", HTTP::Headers{"User-Agent" => "Crystal"},data)
+    response.body.should eq "DB::ExecResult(@rows_affected=0, @last_insert_id=0)"
   end
 end
 

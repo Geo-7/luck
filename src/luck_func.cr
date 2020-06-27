@@ -2,7 +2,17 @@ require "json"
 require "sqlite3"
 require "db"
 require "log"
-class APIParser  
+class APIParser
+  @db_host: String =""
+  @db_username: String =""
+  @db_password: String =""
+  @db_name: String =""
+  @db_engine: String =""
+  @listen_port: Int32 = 5700
+  getter listen_port
+  def initialize()
+    get_env()
+  end
     def parse(url,method,body)
       app = find_tag(url,1)
       case app
@@ -41,7 +51,7 @@ class APIParser
       case http_method
       when "POST"
         query = make_create_table_str(table_name, table_json)
-        db = DB.open("sqlite3://./src/object.db")
+        db = DB.open("sqlite3://./src/#{@db_name}")
         db.exec(query)
       else
         ...
@@ -57,7 +67,7 @@ class APIParser
     def crud_object(table_name, obj_value, http_method, http_body)
       name =""
       age= ""
-      db=DB.open("sqlite3://./src/object.db")
+      db=DB.open("sqlite3://./src/#{@db_name}")
       case http_method
       when "GET"
         db.query "select * from #{table_name}" do |rs|
@@ -83,5 +93,13 @@ class APIParser
         
       end
       
+    end
+    def get_env()
+      @db_host = ENV.["luck_db_host"] ||= "127.0.0.1"
+      @db_username = ENV.["luck_db_username"] ||= "luck"
+      @db_password = ENV.["luck_db_password"] ||= "moreluck"
+      @db_name  = ENV.["luck_db_name"] ||= "luckdb"
+      @db_engine  = ENV.["luck_db_engine"] ||= "sqlite"
+      @listen_port = (ENV.["luck_listen_port"] ||="5800").to_i
     end
   end

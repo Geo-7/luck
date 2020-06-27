@@ -10,8 +10,8 @@ module Luck
     c.response.content_type="application/json"
     c.response.print api.parse(c.request.path,c.request.method,c.request.body)
   end  
-  address =server.bind_tcp 5700
+  address =server.bind_tcp api.listen_port
+  Log.info {"start listening on:"}
   Log.info &.emit("#{address}")
-  Log.info {"start listening on 5700"}
   server.listen
 end
