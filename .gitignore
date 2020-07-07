@@ -4,3 +4,7 @@
 /.shards/
 *.dwarf
 /.vscode/
+dummy
+src/db.sql
+src/luck
+src/luckdb
