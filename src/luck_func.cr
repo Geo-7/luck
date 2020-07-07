@@ -2,16 +2,25 @@ require "json"
 require "sqlite3"
 require "db"
 require "log"
+require "pg"
 class APIParser
   @db_host: String =""
-  @db_username: String =""
   @db_password: String =""
   @db_name: String =""
   @db_engine: String =""
   @listen_port: Int32 = 5700
+  @db_url: String ="luckdb"
+  @db: DB::Database=DB.open("sqlite3://dummy")
   getter listen_port
   def initialize()
     get_env()
+    begin
+      @db = DB.open(@db_url)
+      Log.info &.emit "Connected to #{@db_engine}"
+    rescue exception
+      pp exception.message
+      abort("Could not connect to DB")
+    end
   end
     def parse(url,method,body)
       app = find_tag(url,1)
@@ -50,9 +59,8 @@ class APIParser
       table_json = JSON.parse(body.gets_to_end)
       case http_method
       when "POST"
-        query = make_create_table_str(table_name, table_json)
-        db = DB.open("sqlite3://./src/#{@db_name}")
-        db.exec(query)
+        query = make_create_table_str(table_name, table_json) 
+        @db.exec(query)
       else
         ...
       end
@@ -62,15 +70,22 @@ class APIParser
       table_json.as_h.each do |k|
         table_str += ", " + k[0].to_s + " " + k[1].to_s
       end
-      "CREATE TABLE #{table_name}(ID INTEGER PRIMARY KEY#{table_str})"
+      case @db_engine
+      when "sqlite3"
+        str ="CREATE TABLE #{table_name}(id INTEGER PRIMARY KEY#{table_str})"
+      when "postgres"
+        str ="CREATE TABLE #{table_name}(id SERIAL #{table_str})"
+      else
+        str=""
+      end
+      str
     end
     def crud_object(table_name, obj_value, http_method, http_body)
       name =""
       age= ""
-      db=DB.open("sqlite3://./src/#{@db_name}")
       case http_method
       when "GET"
-        db.query "select * from #{table_name}" do |rs|
+        @db.query "select * from #{table_name}" do |rs|
           rs.each do
             id = rs.read(Int64)
             name =rs.read(String)
@@ -82,7 +97,7 @@ class APIParser
         body = http_body.not_nil!
         o = JSON.parse(body.gets_to_end)
         query = "insert into #{table_name}(name,att) values('#{o["name"]}','#{o["att"]}')"
-        result = db.exec(query)
+        result = @db.exec(query)
         return result
       when "PATCH"
         ...
@@ -95,11 +110,35 @@ class APIParser
       
     end
     def get_env()
-      @db_host = ENV.["luck_db_host"] ||= "127.0.0.1"
-      @db_username = ENV.["luck_db_username"] ||= "luck"
-      @db_password = ENV.["luck_db_password"] ||= "moreluck"
-      @db_name  = ENV.["luck_db_name"] ||= "luckdb"
-      @db_engine  = ENV.["luck_db_engine"] ||= "sqlite"
-      @listen_port = (ENV.["luck_listen_port"] ||="5800").to_i
+      begin
+        key= "RANDOM1400vat2412armAMDbobomiz44"
+        iv="rtyu2000tpk43320"
+        @db_name  = ENV.["luck_db_name"] ||= "luck"
+        @db_engine  = ENV.["luck_db_engine"] ||= "sqlite3"
+        case @db_engine
+        when "postgres"
+          @db_host = ENV.["luck_db_host"] ||= "127.0.0.1"
+          @db_password = ENV.["luck_db_password"]
+          @db_password = decrypt Base64.decode(@db_password), key, iv ||= "moreluck"
+          @db_url = "postgres://#{@db_password}@#{@db_host}/#{@db_name}"
+        when "sqlite3"
+          @db_url = "sqlite3://#{@db_name}"
+        end
+        @listen_port = (ENV.["luck_listen_port"] ||="5800").to_i
+      rescue ex
+        p ex.message
+        abort("DB connection string is not set ENV varibale")
+        ex.message
+      end
+    end
+    def decrypt(data, key, iv)
+      decipher = OpenSSL::Cipher.new "aes-256-cbc"
+      decipher.decrypt
+      decipher.key = key
+      decipher.iv = iv
+      dec_data = IO::Memory.new
+      dec_data.write decipher.update(data)
+      dec_data.write decipher.final
+      dec_data.to_s
     end
   end

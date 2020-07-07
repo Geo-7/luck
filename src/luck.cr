@@ -15,3 +15,4 @@ module Luck
   Log.info &.emit("#{address}")
   server.listen
 end
+
