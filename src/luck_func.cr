@@ -3,16 +3,18 @@ require "sqlite3"
 require "db"
 require "log"
 require "pg"
+
 class APIParser
-  @db_host: String =""
-  @db_password: String =""
-  @db_name: String =""
-  @db_engine: String =""
-  @listen_port: Int32 = 5700
-  @db_url: String ="luckdb"
-  @db: DB::Database=DB.open("sqlite3://dummy")
+  @db_host : String = ""
+  @db_password : String = ""
+  @db_name : String = ""
+  @db_engine : String = ""
+  @listen_port : Int32 = 5700
+  @db_url : String = "luckdb"
+  @db : DB::Database = DB.open("sqlite3://dummy")
   getter listen_port
-  def initialize()
+
+  def initialize
     get_env()
     begin
       @db = DB.open(@db_url)
@@ -22,123 +24,157 @@ class APIParser
       abort("Could not connect to DB")
     end
   end
-    def parse(url,method,body)
-      app = find_tag(url,1)
-      case app
-      when "object"
-        table_name = find_tag(url,2)
-        create_table(table_name, method, body)
-      when "nothing"
-        return "noting"
-      else
-        obj_value =find_tag(url,2)
-        crud_object(app,obj_value, method,body)
-      end
-    end
-    def find_tag(url,segment)
-      parts = url.count("/")
-      if segment > parts
-        return false
-      end
-      i = 0
-      end_offset =0
-      start =0
-      while i < segment
-        start =  url.index("/",end_offset).not_nil! + 1
-        if url.index("/",start)
-          end_offset = url.index("/",start).not_nil!
-        else
-          end_offset = url.size 
-        end
-        i+=1
-      end
-      url[start..end_offset-1]
-    end
-    def create_table(table_name, http_method, http_body)
-      body = http_body.not_nil!
-      table_json = JSON.parse(body.gets_to_end)
-      case http_method
-      when "POST"
-        query = make_create_table_str(table_name, table_json) 
-        @db.exec(query)
-      else
-        ...
-      end
-    end
-    def make_create_table_str(table_name,table_json)
-      table_str =""
-      table_json.as_h.each do |k|
-        table_str += ", " + k[0].to_s + " " + k[1].to_s
-      end
-      case @db_engine
-      when "sqlite3"
-        str ="CREATE TABLE #{table_name}(id INTEGER PRIMARY KEY#{table_str})"
-      when "postgres"
-        str ="CREATE TABLE #{table_name}(id SERIAL #{table_str})"
-      else
-        str=""
-      end
-      str
-    end
-    def crud_object(table_name, obj_value, http_method, http_body)
-      name =""
-      age= ""
-      case http_method
-      when "GET"
-        @db.query "select * from #{table_name}" do |rs|
-          rs.each do
-            id = rs.read(Int64)
-            name =rs.read(String)
-            age = rs.read(String)
-          end
-        end
-        return {name: name,age: age}.to_json
-      when "POST"
-        body = http_body.not_nil!
-        o = JSON.parse(body.gets_to_end)
-        query = "insert into #{table_name}(name,att) values('#{o["name"]}','#{o["att"]}')"
-        result = @db.exec(query)
-        return result
-      when "PATCH"
-        ...
-        
-      
-      when "DELETE"
-        ...
-        
-      end
-      
-    end
-    def get_env()
-      begin
-        key= "RANDOM1400vat2412armAMDbobomiz44"
-        iv="rtyu2000tpk43320"
-        @db_name  = ENV.["luck_db_name"] ||= "luck"
-        @db_engine  = ENV.["luck_db_engine"] ||= "sqlite3"
-        case @db_engine
-        when "postgres"
-          @db_host = ENV.["luck_db_host"] ||= "127.0.0.1"
-          @db_password = ENV.["luck_db_password"]
-          @db_password = decrypt Base64.decode(@db_password), key, iv ||= "moreluck"
-          @db_url = "postgres://#{@db_password}@#{@db_host}/#{@db_name}"
-        when "sqlite3"
-          @db_url = "sqlite3://#{@db_name}"
-        end
-        @listen_port = (ENV.["luck_listen_port"] ||="5800").to_i
-      rescue ex
-        p ex.message
-        abort("DB connection string is not set ENV varibale")
-        ex.message
-      end
-    end
-    def decrypt(data, key, iv)
-      decipher = OpenSSL::Cipher.new "aes-256-cbc"
-      decipher.decrypt
-      decipher.key = key
-      decipher.iv = iv
-      dec_data = IO::Memory.new
-      dec_data.write decipher.update(data)
-      dec_data.write decipher.final
-      dec_data.to_s
+
+  def parse(url, method, body)
+    app = find_tag(url, 1)
+    case app
+    when "object"
+      table_name = find_tag(url, 2)
+      create_table(table_name, method, body)
+    when "nothing"
+      return "noting"
+    else
+      obj_value = find_tag(url, 2)
+      crud_object(app, obj_value, method, body)
     end
   end
+
+  def find_tag(url, segment)
+    parts = url.count("/")
+    if segment > parts
+      return false
+    end
+    i = 0
+    end_offset = 0
+    start = 0
+    while i < segment
+      start = url.index("/", end_offset).not_nil! + 1
+      if url.index("/", start)
+        end_offset = url.index("/", start).not_nil!
+      else
+        end_offset = url.size
+      end
+      i += 1
+    end
+    url[start..end_offset - 1]
+  end
+
+  def create_table(table_name, http_method, http_body)
+    body = http_body.not_nil!
+    table_json = JSON.parse(body.gets_to_end)
+    case http_method
+    when "POST"
+      query = make_create_table_str(table_name, table_json)
+      @db.exec(query)
+    else
+      ...
+    end
+  end
+
+  def make_create_table_str(table_name, table_json)
+    table_str = ""
+    table_json.as_h.each do |k|
+      table_str += ", " + k[0].to_s + " " + k[1].to_s
+    end
+    case @db_engine
+    when "sqlite3"
+      str = "CREATE TABLE #{table_name}(id INTEGER PRIMARY KEY#{table_str})"
+    when "postgres"
+      str = "CREATE TABLE #{table_name}(id SERIAL #{table_str})"
+    else
+      str = ""
+    end
+    str
+  end
+
+  def crud_object(table_name, obj_value, http_method, http_body)
+    case http_method
+    when "GET"
+      #result_array = [] of DB::Any
+      # TODO I should fix a type of result_array
+      result_array =[] of (Array(PG::BoolArray) | Array(PG::CharArray) | Array(PG::Float32Array) | Array(PG::Float64Array) | Array(PG::Int16Array) | Array(PG::Int32Array) | Array(PG::Int64Array) | Array(PG::NumericArray) | Array(PG::StringArray) | Array(PG::TimeArray) | Bool | Char | Float32 | Float64 | Int16 | Int32 | Int64 | JSON::Any | PG::Geo::Box | PG::Geo::Circle | PG::Geo::Line | PG::Geo::LineSegment | PG::Geo::Path | PG::Geo::Point | PG::Geo::Polygon | PG::Numeric | Slice(UInt8) | String | Time | UInt32 | Nil)
+      column_names = [] of String
+      @db.query_all "select * from #{table_name}" do |rs|
+        column_names = rs.column_names
+        rs.column_names.each do
+          result_array << rs.read
+        end
+      end
+      i = 0
+      j = 0
+      result = [] of JSON::Any
+      (result_array.size/column_names.size).to_i32.times do
+        result_json = JSON.build do |json|
+          json.object do
+            column_names.size.times do
+              json.field column_names[i], find_type(result_array[j])
+              i += 1
+              j += 1
+            end
+          end
+        end
+        i = 0
+        result << (JSON.parse(result_json))
+      end
+      result.to_json
+    when "POST"
+      body = http_body.not_nil!
+      o = JSON.parse(body.gets_to_end)
+      query = "insert into #{table_name}(name,att) values('#{o["name"]}','#{o["att"]}')"
+      result = @db.exec(query)
+      result
+    when "PATCH"
+      ...
+    when "DELETE"
+      ...
+    end
+  end
+  def find_type(value)
+    value =value.to_s
+    begin
+        value.to_f64
+    rescue exception
+        case value
+        when "false"
+            false
+        when "true"
+            true
+        else
+            value
+        end
+    end
+  end
+  def get_env
+    begin
+      key = "RANDOM1400vat2412armAMDbobomiz44"
+      iv = "rtyu2000tpk43320"
+      @db_name = ENV.["luck_db_name"] ||= "luck"
+      @db_engine = ENV.["luck_db_engine"] ||= "sqlite3"
+      case @db_engine
+      when "postgres"
+        @db_host = ENV.["luck_db_host"] ||= "127.0.0.1"
+        @db_password = ENV.["luck_db_password"]
+        @db_password = decrypt Base64.decode(@db_password), key, iv ||= "moreluck"
+        @db_url = "postgres://#{@db_password}@#{@db_host}/#{@db_name}"
+      when "sqlite3"
+        @db_url = "sqlite3://#{@db_name}"
+      end
+      @listen_port = (ENV.["luck_listen_port"] ||= "5800").to_i
+    rescue ex
+      p ex.message
+      abort("DB connection string is not set ENV varibale")
+      ex.message
+    end
+  end
+
+  def decrypt(data, key, iv)
+    decipher = OpenSSL::Cipher.new "aes-256-cbc"
+    decipher.decrypt
+    decipher.key = key
+    decipher.iv = iv
+    dec_data = IO::Memory.new
+    dec_data.write decipher.update(data)
+    dec_data.write decipher.final
+    dec_data.to_s
+  end
+end
