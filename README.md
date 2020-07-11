@@ -7,8 +7,24 @@ Luck is a headless CMS
 crystal build src/luck.cr --release
 
 ## Usage
-
+when you start the server if no environment variable has been set it will use sqlite3 engine and will create database file(luck):
 ./luck
+
+Creating a new table with sqlite3 engine:
+curl -X POST 127.0.0.1:5800/object/movie --data '{"name": "string", "genre": "string"}' 
+curl -X POST 127.0.0.1:5800/object/student --data '{"name" : "varchar","age" : "integer", "city" : "varchar"}'
+
+Insert data to database:
+curl -X POST http://127.0.0.1:5800/movie --data '{"name": "Matrix", "genre": "SCI-FI"}'
+curl -X POST http://127.0.0.1:5800/movie --data '{"name": "Interstellar", "genre": "SCI-FI"}'
+curl -X POST 127.0.0.1:5800/student --data '{"name" : "George","age" : 7, "city" : "moon"}'
+curl -X POST 127.0.0.1:5800/student --data '{"name" : "Joe","age" : 8, "city" : "moon"}'
+
+
+Reading data from database:
+curl -X GET http://127.0.0.1:5800/movie
+curl -X GET http://127.0.0.1:5800/student
+
 
 ## Development
 
