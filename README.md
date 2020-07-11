@@ -11,7 +11,7 @@ when you start the server if no environment variable has been set it will use sq
 ./luck  
 
 Creating a new table with sqlite3 engine:  
-curl -X POST 127.0.0.1:5800/object/movie --data '{"name": "string", "genre": "string"}' 
+curl -X POST 127.0.0.1:5800/object/movie --data '{"name": "string", "genre": "string"}'  
 curl -X POST 127.0.0.1:5800/object/student --data '{"name" : "varchar","age" : "integer", "city" : "varchar"}'  
 
 Insert data to database:  
