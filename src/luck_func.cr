@@ -87,12 +87,27 @@ class APIParser
     str
   end
 
+  def make_insert_str(table_name, table_json)
+    value_str = ""
+    table_json.as_h.each do |k|
+      value_str += "'" + k[1].to_s + "', "
+    end
+    value_str = value_str[0,(value_str.size - 2)]
+    column_str = ""
+    table_json.as_h.each do |k|
+      column_str += "'" + k[0].to_s + "', "
+    end
+    column_str = column_str[0,(column_str.size - 2)]
+    str = "INSERT INTO #{table_name}(#{column_str}) values (#{value_str})"
+    pp str
+    str
+  end
   def crud_object(table_name, obj_value, http_method, http_body)
     case http_method
     when "GET"
-      #result_array = [] of DB::Any
+      # result_array = [] of DB::Any
       # TODO I should fix a type of result_array
-      result_array =[] of (Array(PG::BoolArray) | Array(PG::CharArray) | Array(PG::Float32Array) | Array(PG::Float64Array) | Array(PG::Int16Array) | Array(PG::Int32Array) | Array(PG::Int64Array) | Array(PG::NumericArray) | Array(PG::StringArray) | Array(PG::TimeArray) | Bool | Char | Float32 | Float64 | Int16 | Int32 | Int64 | JSON::Any | PG::Geo::Box | PG::Geo::Circle | PG::Geo::Line | PG::Geo::LineSegment | PG::Geo::Path | PG::Geo::Point | PG::Geo::Polygon | PG::Numeric | Slice(UInt8) | String | Time | UInt32 | Nil)
+      result_array = [] of (Array(PG::BoolArray) | Array(PG::CharArray) | Array(PG::Float32Array) | Array(PG::Float64Array) | Array(PG::Int16Array) | Array(PG::Int32Array) | Array(PG::Int64Array) | Array(PG::NumericArray) | Array(PG::StringArray) | Array(PG::TimeArray) | Bool | Char | Float32 | Float64 | Int16 | Int32 | Int64 | JSON::Any | PG::Geo::Box | PG::Geo::Circle | PG::Geo::Line | PG::Geo::LineSegment | PG::Geo::Path | PG::Geo::Point | PG::Geo::Polygon | PG::Numeric | Slice(UInt8) | String | Time | UInt32 | Nil)
       column_names = [] of String
       @db.query_all "select * from #{table_name}" do |rs|
         column_names = rs.column_names
@@ -118,32 +133,31 @@ class APIParser
       end
       result.to_json
     when "POST"
-      body = http_body.not_nil!
-      o = JSON.parse(body.gets_to_end)
-      query = "insert into #{table_name}(name,att) values('#{o["name"]}','#{o["att"]}')"
-      result = @db.exec(query)
-      result
+      insert_json = JSON.parse(http_body.not_nil!.gets_to_end)
+      @db.exec make_insert_str(table_name,insert_json)
     when "PATCH"
       ...
     when "DELETE"
       ...
     end
   end
+  
   def find_type(value)
-    value =value.to_s
+    value = value.to_s
     begin
-        value.to_f64
+      value.to_f64
     rescue exception
-        case value
-        when "false"
-            false
-        when "true"
-            true
-        else
-            value
-        end
+      case value
+      when "false"
+        false
+      when "true"
+        true
+      else
+        value
+      end
     end
   end
+
   def get_env
     begin
       key = "RANDOM1400vat2412armAMDbobomiz44"
