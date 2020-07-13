@@ -3,7 +3,7 @@ require "sqlite3"
 require "db"
 require "log"
 require "pg"
-
+#APIParser parses a HTTP request and make CRUD operation
 class APIParser
   @db_host : String = ""
   @db_password : String = ""
@@ -14,6 +14,7 @@ class APIParser
   @db : DB::Database = DB.open("sqlite3://dummy")
   getter listen_port
 
+  #reads environment variable and connect to db
   def initialize
     get_env()
     begin
@@ -24,7 +25,7 @@ class APIParser
       abort("Could not connect to DB")
     end
   end
-
+  #find a verb and rest call 
   def parse(url, method, body)
     app = find_tag(url, 1)
     case app
@@ -38,7 +39,7 @@ class APIParser
       crud_object(app, obj_value, method, body)
     end
   end
-
+  #find HTTP resource request
   def find_tag(url, segment)
     parts = url.count("/")
     if segment > parts
@@ -58,7 +59,7 @@ class APIParser
     end
     url[start..end_offset - 1]
   end
-
+  #creating table in database
   def create_table(table_name, http_method, http_body)
     body = http_body.not_nil!
     table_json = JSON.parse(body.gets_to_end)
@@ -70,7 +71,7 @@ class APIParser
       ...
     end
   end
-
+  #create query for making new table
   def make_create_table_str(table_name, table_json)
     table_str = ""
     table_json.as_h.each do |k|
@@ -86,7 +87,7 @@ class APIParser
     end
     str
   end
-
+  #create query string for insert
   def make_insert_str(table_name, table_json)
     value_str = ""
     table_json.as_h.each do |k|
@@ -101,6 +102,7 @@ class APIParser
     str = "INSERT INTO #{table_name}(#{column_str}) values (#{value_str})"
     str
   end
+  #find a HTTP verb
   def crud_object(table_name, obj_value, http_method, http_body)
     case http_method
     when "GET"
@@ -142,6 +144,7 @@ class APIParser
       @db.exec "DELETE from #{table_name} where id =?",delete_json["id"].to_s
     end
   end
+  # make update query string
   def make_update_str(table_name,update_json)
     query ="UPDATE #{table_name} SET "
     update_json.as_h.each do |k,v|
@@ -152,7 +155,7 @@ class APIParser
     query = query[0,(query.size-2)]
     query += " WHERE id=#{update_json["id"].to_s}"
   end
-
+  # dummy reflection
   def find_type(value)
     value = value.to_s
     begin
@@ -168,7 +171,7 @@ class APIParser
       end
     end
   end
-
+  #reads environment varibale
   def get_env
     begin
       key = "RANDOM1400vat2412armAMDbobomiz44"
@@ -191,7 +194,7 @@ class APIParser
       ex.message
     end
   end
-
+  #decrypt data
   def decrypt(data, key, iv)
     decipher = OpenSSL::Cipher.new "aes-256-cbc"
     decipher.decrypt
