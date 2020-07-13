@@ -25,7 +25,7 @@ Reading data from database:
 curl -X GET http://127.0.0.1:5800/movie  
 curl -X GET http://127.0.0.1:5800/student  
 
-Deleting one row from database wit id:  
+Deleting one row from database with id:  
 curl -X DELETE http://127.0.0.1:5800/movie --data '{"id":2}'
 
 Updating data with id:  
