@@ -99,7 +99,6 @@ class APIParser
     end
     column_str = column_str[0,(column_str.size - 2)]
     str = "INSERT INTO #{table_name}(#{column_str}) values (#{value_str})"
-    pp str
     str
   end
   def crud_object(table_name, obj_value, http_method, http_body)
@@ -136,12 +135,24 @@ class APIParser
       insert_json = JSON.parse(http_body.not_nil!.gets_to_end)
       @db.exec make_insert_str(table_name,insert_json)
     when "PATCH"
-      ...
+      update_json = JSON.parse(http_body.not_nil!.gets_to_end)
+      @db.exec make_update_str(table_name,update_json)
     when "DELETE"
-      ...
+      delete_json = JSON.parse(http_body.not_nil!.gets_to_end)
+      @db.exec "DELETE from #{table_name} where id =?",delete_json["id"].to_s
     end
   end
-  
+  def make_update_str(table_name,update_json)
+    query ="UPDATE #{table_name} SET "
+    update_json.as_h.each do |k,v|
+      if k !="id"
+        query += "#{k}='#{v}', "
+      end
+    end
+    query = query[0,(query.size-2)]
+    query += " WHERE id=#{update_json["id"].to_s}"
+  end
+
   def find_type(value)
     value = value.to_s
     begin

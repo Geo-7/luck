@@ -25,6 +25,12 @@ Reading data from database:
 curl -X GET http://127.0.0.1:5800/movie  
 curl -X GET http://127.0.0.1:5800/student  
 
+Deleting one row from database wit id:  
+curl -X DELETE http://127.0.0.1:5800/movie --data '{"id":2}'
+
+Updating data with id:  
+curl -X PATCH http://127.0.0.1:5800/movie --data '{"id":2,"genre":"Romance"}'
+
 
 ## Development
 
