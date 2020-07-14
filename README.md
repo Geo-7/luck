@@ -10,14 +10,14 @@ crystal build src/luck.cr --release
 when you start the server if no environment variable has been set it will use sqlite3 engine and will create database file(luck):  
 ./luck  
 
-To start a server with postgresql engine you shuld set some environmnet varibales or you use bash script like this:
+To start a server with postgresql engine you shuld set some environmnet varibales or you use bash script like this:  
 `#!/bin/bash -x`  
 `export luck_listen_port="5800"`  
 `export luck_db_host="127.0.0.1"`  
 `export luck_db_password="7DU1IDYjkyB9ZvGYBdv2HQ"`  
 `export luck_db_engine="postgres"`  
 `export luck_db_name="luck"`  
-`./vat_admin >> log 2>&1 &`  
+`./luck >> log 2>&1 &`  
 `disown`  
 the above command will run the luck cms with and send it to background  
 luck_db_password is "username:password" which is encrypted 
