@@ -21,6 +21,10 @@ To start a server with postgresql engine you shuld set some environmnet varibale
 `disown`  
 the above command will run the luck cms with and send it to background  
 luck_db_password is "username:password" which is encrypted 
+you should encrypt it with openssl "aes-256-cbc" you can use my crystal app for that:  
+https://github.com/Geo-7/openssl_sample  
+and openssl_sample -e "username:password" -k "RANDOM1400vat2412armAMDbobomiz44" -i "rtyu2000tpk43320"
+
 
 Creating a new table with sqlite3 engine:  
 `curl -X POST http://127.0.0.1:5800/object/movie --data '{"name": "TEXT", "genre": "TEXT"}'`  
