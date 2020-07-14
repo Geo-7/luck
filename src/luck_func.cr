@@ -7,11 +7,13 @@ require "pg"
 class APIParser
   @db_host : String = ""
   @db_password : String = ""
-  @db_name : String = ""
+  @db_name : String = "luck.db"
   @db_engine : String = ""
   @listen_port : Int32 = 5700
-  @db_url : String = "luckdb"
-  @db : DB::Database = DB.open("sqlite3://dummy")
+  @db_url : String = ""
+  #TODO Fix this stupidity I create this dummy beacuse I can compile the app and because I open the connection in begin rescue 
+  # inside initialize method of APIParser 
+  @db : DB::Database = DB.open("sqlite3://{dummy}")
   getter listen_port
 
   #reads environment variable and connect to db
@@ -96,10 +98,11 @@ class APIParser
     value_str = value_str[0,(value_str.size - 2)]
     column_str = ""
     table_json.as_h.each do |k|
-      column_str += "'" + k[0].to_s + "', "
+      column_str += k[0].to_s + ", "
     end
     column_str = column_str[0,(column_str.size - 2)]
     str = "INSERT INTO #{table_name}(#{column_str}) values (#{value_str})"
+    pp str
     str
   end
   #find a HTTP verb
@@ -141,7 +144,7 @@ class APIParser
       @db.exec make_update_str(table_name,update_json)
     when "DELETE"
       delete_json = JSON.parse(http_body.not_nil!.gets_to_end)
-      @db.exec "DELETE from #{table_name} where id =?",delete_json["id"].to_s
+      @db.exec "DELETE from #{table_name} where id =#{delete_json["id"].to_s}"
     end
   end
   # make update query string
@@ -176,7 +179,7 @@ class APIParser
     begin
       key = "RANDOM1400vat2412armAMDbobomiz44"
       iv = "rtyu2000tpk43320"
-      @db_name = ENV.["luck_db_name"] ||= "luck"
+      @db_name = ENV.["luck_db_name"] ||= "luck.db"
       @db_engine = ENV.["luck_db_engine"] ||= "sqlite3"
       case @db_engine
       when "postgres"
