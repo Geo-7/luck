@@ -5,6 +5,7 @@
 *.dwarf
 /.vscode/
 dummy
+luck.db
 src/db.sql
 src/luck
 src/luckdb

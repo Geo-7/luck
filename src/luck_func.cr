@@ -13,8 +13,9 @@ class APIParser
   @db_url : String = ""
   #TODO Fix this stupidity I create this dummy beacuse I can compile the app and because I open the connection in begin rescue 
   # inside initialize method of APIParser 
-  @db : DB::Database = DB.open("sqlite3://{dummy}")
+  @db : DB::Database = DB.open("sqlite3://dummy")
   getter listen_port
+  setter db_engine
 
   #reads environment variable and connect to db
   def initialize
@@ -83,7 +84,7 @@ class APIParser
     when "sqlite3"
       str = "CREATE TABLE #{table_name}(id INTEGER PRIMARY KEY#{table_str})"
     when "postgres"
-      str = "CREATE TABLE #{table_name}(id SERIAL #{table_str})"
+      str = "CREATE TABLE #{table_name}(id SERIAL#{table_str})"
     else
       str = ""
     end
@@ -101,8 +102,7 @@ class APIParser
       column_str += k[0].to_s + ", "
     end
     column_str = column_str[0,(column_str.size - 2)]
-    str = "INSERT INTO #{table_name}(#{column_str}) values (#{value_str})"
-    pp str
+    str = "INSERT INTO #{table_name}(#{column_str}) values(#{value_str})"
     str
   end
   #find a HTTP verb
@@ -126,7 +126,7 @@ class APIParser
         result_json = JSON.build do |json|
           json.object do
             column_names.size.times do
-              json.field column_names[i], find_type(result_array[j])
+              json.field column_names[i], cast_type(result_array[j])
               i += 1
               j += 1
             end
@@ -159,7 +159,7 @@ class APIParser
     query += " WHERE id=#{update_json["id"].to_s}"
   end
   # dummy reflection
-  def find_type(value)
+  def cast_type(value)
     value = value.to_s
     begin
       value.to_f64
