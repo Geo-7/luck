@@ -11,9 +11,9 @@ describe APIParser do
   end
   describe "make_create_table_str" do
     it "Gets a json and make query to create corrosponding table" do
-      input_json = JSON.parse(%({"legs": "string", "att": "string", "hands": "INTEGER"}))
+      input_json = JSON.parse(%({"legs": "TEXT", "att": "TEXT", "hands": "INTEGER"}))
       str = ap.make_create_table_str("Monkey",input_json)
-      str.should eq "CREATE TABLE Monkey(id INTEGER PRIMARY KEY, legs string, att string, hands INTEGER)" 
+      str.should eq "CREATE TABLE Monkey(id INTEGER PRIMARY KEY, legs TEXT, att TEXT, hands INTEGER)" 
       input_json = JSON.parse(%({"name": "varchar", "genre": "varchar"}))
       str = ap.make_create_table_str("Movie",input_json)
       str.should eq "CREATE TABLE Movie(id INTEGER PRIMARY KEY, name varchar, genre varchar)"
@@ -69,7 +69,7 @@ integration_test = ENV["integration_test"] ||= "false"
 if integration_test == "true"
   describe "POST /object/table_name" do
     it "POST a table json and make a table" do
-      data = %({"name": "string", "att": "string"})
+      data = %({"name": "TEXT", "att": "TEXT"})
       response = HTTP::Client.post("127.0.0.1:5800/object/mov", HTTP::Headers{"User-Agent" => "Crystal"},data)
       response.body.should eq "DB::ExecResult(@rows_affected=0, @last_insert_id=0)"
     end
