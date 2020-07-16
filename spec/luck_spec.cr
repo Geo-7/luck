@@ -9,6 +9,12 @@ describe APIParser do
         ap.find_tag("podtan.com/api/object/",2).should eq "object"
     end
   end
+  describe "make_alphanumeric" do
+    it "tests if the value is safe for sql table and column name" do
+      ap.make_alphanumeric("b#45'po\"").should eq "b45po"
+      ap.make_alphanumeric("$tr_45ui-p^").should eq "tr_45ui-p"
+    end
+  end
   describe "make_create_table_str" do
     it "Gets a json and make query to create corrosponding table" do
       input_json = JSON.parse(%({"legs": "TEXT", "att": "TEXT", "hands": "INTEGER"}))
@@ -19,6 +25,11 @@ describe APIParser do
       str.should eq "CREATE TABLE Movie(id INTEGER PRIMARY KEY, name varchar, genre varchar)"
       ap.db_engine="postgres"
       str = ap.make_create_table_str("Movie",input_json)
+      str.should eq "CREATE TABLE Movie(id SERIAL, name varchar, genre varchar)"
+      str = ap.make_create_table_str("Mov%$ie",input_json)
+      str.should eq "CREATE TABLE Movie(id SERIAL, name varchar, genre varchar)"
+      input_json = JSON.parse(%({"na@me": "varchar", "g!enre": "varchar"}))
+      str = ap.make_create_table_str("Mov%$ie",input_json)
       str.should eq "CREATE TABLE Movie(id SERIAL, name varchar, genre varchar)"
     end 
   end

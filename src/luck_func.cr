@@ -78,17 +78,19 @@ class APIParser
   def make_create_table_str(table_name, table_json)
     table_str = ""
     table_json.as_h.each do |k|
-      table_str += ", " + k[0].to_s + " " + k[1].to_s
+      table_str += ", " + make_alphanumeric(k[0].to_s) + " " + k[1].to_s
     end
     case @db_engine
     when "sqlite3"
-      str = "CREATE TABLE #{table_name}(id INTEGER PRIMARY KEY#{table_str})"
+      "CREATE TABLE #{make_alphanumeric(table_name)}(id INTEGER PRIMARY KEY#{table_str})"
     when "postgres"
-      str = "CREATE TABLE #{table_name}(id SERIAL#{table_str})"
+      "CREATE TABLE #{make_alphanumeric(table_name)}(id SERIAL#{table_str})"
     else
-      str = ""
+      ""
     end
-    str
+  end
+  def make_alphanumeric(name)
+    name.gsub /[^\w\d_-]/, ""
   end
   #create query string for insert
   def make_insert_str(table_name, table_json)
