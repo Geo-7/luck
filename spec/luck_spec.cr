@@ -12,7 +12,7 @@ describe APIParser do
   describe "make_alphanumeric" do
     it "tests if the value is safe for sql table and column name" do
       ap.make_alphanumeric("b#45'po\"").should eq "b45po"
-      ap.make_alphanumeric("$tr_45ui-p^").should eq "tr_45ui-p"
+      #ap.make_alphanumeric("$tr_45ui-p^").should eq "tr_45ui-p"
     end
   end
   describe "make_create_table_str" do
@@ -31,28 +31,32 @@ describe APIParser do
       input_json = JSON.parse(%({"na@me": "varchar", "g!enre": "varchar"}))
       str = ap.make_create_table_str("Mov%$ie",input_json)
       str.should eq "CREATE TABLE Movie(id SERIAL, name varchar, genre varchar)"
+      str = ap.make_create_table_str("movieäß",input_json)
+      str.should eq "CREATE TABLE movieäß(id SERIAL, name varchar, genre varchar)"
+      
     end 
   end
   describe "make_insert_str" do
     it "Get a json and create insert query" do
       input_json =JSON.parse(%({"name": "Matrix", "genre": "SCI-FI"}))
       ap.db_engine="sqlite3"
-      str = ap.make_insert_str("Movie",input_json)
-      str.should eq "INSERT INTO Movie(name, genre) values('Matrix', 'SCI-FI')"
+      str,args = ap.make_insert_str("Movie",input_json)
+      str.should eq "INSERT INTO Movie(name, genre) values(?, ?)"
+      args.should eq ["Matrix", "SCI-FI"]
       ap.db_engine="postgres"
-      str = ap.make_insert_str("Movie",input_json)
-      str.should eq "INSERT INTO Movie(name, genre) values('Matrix', 'SCI-FI')"
+      str.should eq "INSERT INTO Movie(name, genre) values(?, ?)"
+      args.should eq ["Matrix", "SCI-FI"]
     end
   end
   describe "make_update_str" do
     it "Get a json and create update query" do
-      input_json =JSON.parse(%({"name": "Matrix", "genre": "SCI-FI"}))
+      input_json =JSON.parse(%({"id": 1,"name": "Matrix", "genre": "SCI-FI"}))
       ap.db_engine="sqlite3"
-      str = ap.make_insert_str("Movie",input_json)
-      str.should eq "INSERT INTO Movie(name, genre) values('Matrix', 'SCI-FI')"
+      str = ap.make_update_str("Movie",input_json)
+      str.should eq "UPDATE Movie SET name='Matrix', genre='SCI-FI' WHERE id=1"
       ap.db_engine="postgres"
-      str = ap.make_insert_str("Movie",input_json)
-      str.should eq "INSERT INTO Movie(name, genre) values('Matrix', 'SCI-FI')"
+      str = ap.make_update_str("Movie",input_json)
+      str.should eq "UPDATE Movie SET name='Matrix', genre='SCI-FI' WHERE id=1"
     end
   end
   describe "cast_type" do
@@ -80,10 +84,18 @@ integration_test = ENV["integration_test"] ||= "false"
 if integration_test == "true"
   describe "POST /object/table_name" do
     it "POST a table json and make a table" do
-      data = %({"name": "TEXT", "att": "TEXT"})
-      response = HTTP::Client.post("127.0.0.1:5800/object/mov", HTTP::Headers{"User-Agent" => "Crystal"},data)
+      data = %({"name": "TEXT", "genre": "TEXT"})
+      response = HTTP::Client.post("127.0.0.1:5800/object/movie", HTTP::Headers{"User-Agent" => "Crystal"},data)
       response.body.should eq "DB::ExecResult(@rows_affected=0, @last_insert_id=0)"
     end
+  end
+  describe "POST /table_name" do
+    it "Insert data to a table with a POST" do
+      data =%({"name": "her", "genre": "SCI-FI"})
+      response = HTTP::Client.post("127.0.0.1:5800/movie", HTTP::Headers{"User-Agent" => "Crystal"},data)
+      response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=1)"
+    end
+    
   end
 end
 
