@@ -12,6 +12,7 @@ describe APIParser do
   describe "make_alphanumeric" do
     it "tests if the value is safe for sql table and column name" do
       ap.make_alphanumeric("b#45'po\"").should eq "b45po"
+      ap.make_alphanumeric("aaa!@^ß(*98ß68as0df").should eq "aaaß98ß68as0df"
       # ap.make_alphanumeric("$tr_45ui-p^").should eq "tr_45ui-p"
     end
   end
@@ -51,11 +52,13 @@ describe APIParser do
     it "Get a json and create update query" do
       input_json = JSON.parse(%({"id": 1,"name": "Matrix", "genre": "SCI-FI"}))
       ap.db_engine = "sqlite3"
-      str = ap.make_update_str("Movie", input_json)
-      str.should eq "UPDATE Movie SET name='Matrix', genre='SCI-FI' WHERE id=1"
+      str,args = ap.make_update_str("Movie", input_json)
+      str.should eq "UPDATE Movie SET name=?, genre=? WHERE id=?"
+      args.should eq ["Matrix", "SCI-FI", "1"]
       ap.db_engine = "postgres"
-      str = ap.make_update_str("Movie", input_json)
-      str.should eq "UPDATE Movie SET name='Matrix', genre='SCI-FI' WHERE id=1"
+      str,args = ap.make_update_str("Movie", input_json)
+      str.should eq "UPDATE Movie SET name=?, genre=? WHERE id=?"
+      args.should eq ["Matrix", "SCI-FI", "1"]
     end
   end
   describe "cast_type" do

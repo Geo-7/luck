@@ -98,8 +98,9 @@ class APIParser
 
   # This is for safe table and column name it will delete every character except digit,alphabet,underscore,dash
   def make_alphanumeric(name)
-    (name.chars.select! { |x| x.alphanumeric? }).join
+    #(name.chars.select! { |x| x.alphanumeric? }).join
     # name.gsub /[^\w\d_-]/, ""
+    name.gsub {|c| c.alphanumeric? ? c : nil}
   end
 
   # create query string for insert
