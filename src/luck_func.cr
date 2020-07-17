@@ -150,23 +150,28 @@ class APIParser
       @db.exec request[0],args: request[1]
     when "PATCH"
       update_json = JSON.parse(http_body.not_nil!.gets_to_end)
-      @db.exec make_update_str(table_name, update_json)
+      request =  make_update_str(table_name, update_json)
+      @db.exec request[0],args: request[1]
     when "DELETE"
       delete_json = JSON.parse(http_body.not_nil!.gets_to_end)
-      @db.exec "DELETE from #{table_name} where id =#{delete_json["id"].to_s}"
+      @db.exec "DELETE from #{table_name} where id =?",delete_json["id"].as_i64
     end
   end
 
   # make update query string
   def make_update_str(table_name, update_json)
+    request =[] of String
     query = "UPDATE #{table_name} SET "
     update_json.as_h.each do |k, v|
       if k != "id"
-        query += "#{k}='#{v}', "
+        query += "#{k}=?, "
+        request << v.to_s
       end
     end
+    request << update_json["id"].to_s
     query = query[0, (query.size - 2)]
-    query += " WHERE id=#{update_json["id"].to_s}"
+    query += " WHERE id=?"
+    {query,request}
   end
 
   # dummy reflection
