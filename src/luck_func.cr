@@ -107,7 +107,15 @@ class APIParser
   def make_insert_str(table_name, table_json)
     column_str = String.build { |s| table_json.as_h.each { |k| s << k[0].to_s; s << ", " } }
     column_str = column_str[0, (column_str.size - 2)]
-    value_str = String.build { |s| table_json.as_h.each { |k| s << "?, " } }
+    case @db_engine
+    when "sqlite3"
+      value_str = String.build { |s| table_json.as_h.each { |k| s << "?, " } }
+    when "postgres"
+      value_str = String.build { |s| i=0; table_json.as_h.each { |k| i+=1; s << "$#{i}, " } }
+    else
+      value_str =""
+    end
+    
     value =[] of String
     table_json.as_h.each { |k| value <<  k[1].to_s}
     value_str = value_str[0, (value_str.size - 2)]
@@ -155,7 +163,12 @@ class APIParser
       @db.exec request[0],args: request[1]
     when "DELETE"
       delete_json = JSON.parse(http_body.not_nil!.gets_to_end)
-      @db.exec "DELETE from #{table_name} where id =?",delete_json["id"].as_i64
+      case @db_engine
+      when "sqlite3"
+        @db.exec "DELETE from #{table_name} where id =?",delete_json["id"].as_i64
+      when "postgres"
+        @db.exec "DELETE from #{table_name} where id =$1",delete_json["id"].as_i64
+      end
     end
   end
 
@@ -163,15 +176,32 @@ class APIParser
   def make_update_str(table_name, update_json)
     request =[] of String
     query = "UPDATE #{table_name} SET "
+    i = 1
     update_json.as_h.each do |k, v|
       if k != "id"
-        query += "#{k}=?, "
+        case @db_engine
+        when "sqlite3"
+          query += "#{k}=?, "
+        when "postgres"
+          query += "#{k}=$#{i}, "
+        else
+          query += "#{k}=?, "
+        end
+        i+=1
         request << v.to_s
       end
     end
     request << update_json["id"].to_s
     query = query[0, (query.size - 2)]
-    query += " WHERE id=?"
+    case @db_engine
+    when "sqlite3"
+      query += " WHERE id=?"
+    when "postgres"
+      query += " WHERE id=$#{i}"
+    else
+      query += " WHERE id=?"
+    end
+    
     {query,request}
   end
 
