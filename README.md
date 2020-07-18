@@ -20,10 +20,11 @@ To start a server with postgresql engine you shuld set some environmnet varibale
 `./luck >> log 2>&1 &`  
 `disown`  
 the above command will run the luck cms with and send it to background  
-luck_db_password is "username:password" which is encrypted 
+luck_db_password is "username:password" which is encrypted and base64 encoded   
 you should encrypt it with openssl "aes-256-cbc" you can use my crystal app for that:  
 https://github.com/Geo-7/openssl_sample  
-and openssl_sample -e "username:password" -k "RANDOM1400vat2412armAMDbobomiz44" -i "rtyu2000tpk43320"
+and openssl_sample -e "username:password" -k "RANDOM1400vat2412armAMDbobomiz44" -i "rtyu2000tpk43320"  
+the output is encrypted base64 string.  
 
 
 Creating a new table with sqlite3 engine:  
