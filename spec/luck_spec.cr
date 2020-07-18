@@ -57,7 +57,7 @@ describe APIParser do
       args.should eq ["Matrix", "SCI-FI", "1"]
       ap.db_engine = "postgres"
       str,args = ap.make_update_str("Movie", input_json)
-      str.should eq "UPDATE Movie SET name=?, genre=? WHERE id=?"
+      str.should eq "UPDATE Movie SET name=$1, genre=$2 WHERE id=$3"
       args.should eq ["Matrix", "SCI-FI", "1"]
     end
   end
@@ -80,7 +80,7 @@ end
 
 # #Integration Tests goes here
 integration_test = ENV["integration_test"] ||= "false"
-if integration_test == "true"
+if integration_test == "sqlite3"
   describe "POST /object/table_name" do
     it "POST a table json and make a table" do
       data = %({"name": "TEXT", "genre": "TEXT"})
@@ -102,11 +102,11 @@ if integration_test == "true"
       response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=2)"
     end
   end
-  describe "DELETE /table_nmae" do
+  describe "DELETE /table_name" do
     it "It will delete a record from database with an its ID" do
       delete_json = %({"id": 1})
       response = HTTP::Client.delete("127.0.0.1:5800/movie", HTTP::Headers{"User-Agent" => "Crystal"}, delete_json)
-      response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=1)"
+      response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=2)"
     end
   end
   describe "UPDATE /table_name" do
@@ -114,6 +114,44 @@ if integration_test == "true"
       update_json = (%({"id": 2,"name": "Matrix", "genre": "SCI-FI"}))
       response =HTTP::Client.patch("127.0.0.1:5800/movie",HTTP::Headers{"User-Agent" => "Crystal"}, update_json)
       response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=2)"
+    end
+  end
+end
+integration_test = ENV["integration_test"] ||= "false"
+if integration_test == "postgres"
+  describe "POST /object/table_name" do
+    it "POST a table json and make a table" do
+      data = %({"name": "varchar", "genre": "varchar"})
+      response = HTTP::Client.post("127.0.0.1:5800/object/movie", HTTP::Headers{"User-Agent" => "Crystal"}, data)
+      response.body.should eq "DB::ExecResult(@rows_affected=0, @last_insert_id=0)"
+    end
+  end
+  describe "POST /table_name" do
+    it "Insert data to a table with a POST" do
+      data = %({"name": "her", "genre": "SCI-FI"})
+      response = HTTP::Client.post("127.0.0.1:5800/movie", HTTP::Headers{"User-Agent" => "Crystal"}, data)
+      response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=0)"
+    end
+  end
+  describe "POST /table_name" do
+    it "Insert data to a table with a POST" do
+      data = %({"name": "her", "genre": "Romance"})
+      response = HTTP::Client.post("127.0.0.1:5800/movie", HTTP::Headers{"User-Agent" => "Crystal"}, data)
+      response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=0)"
+    end
+  end
+  describe "DELETE /table_name" do
+    it "It will delete a record from database with an its ID" do
+      delete_json = %({"id": 1})
+      response = HTTP::Client.delete("127.0.0.1:5800/movie", HTTP::Headers{"User-Agent" => "Crystal"}, delete_json)
+      response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=0)"
+    end
+  end
+  describe "UPDATE /table_name" do
+    it "It will update a record in database" do
+      update_json = (%({"id": 2,"name": "Matrix", "genre": "SCI-FI"}))
+      response =HTTP::Client.patch("127.0.0.1:5800/movie",HTTP::Headers{"User-Agent" => "Crystal"}, update_json)
+      response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=0)"
     end
   end
 end
