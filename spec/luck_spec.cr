@@ -20,21 +20,40 @@ describe APIParser do
     it "Gets a json and make query to create corrosponding table" do
       ap.db_engine = "sqlite3"
       input_json = JSON.parse(%({"legs": "TEXT", "att": "TEXT", "hands": "INTEGER"}))
-      str = ap.make_create_table_str("Monkey", input_json)
+      str,err = ap.make_create_table_str("Monkey", input_json)
       str.should eq "CREATE TABLE Monkey(id INTEGER PRIMARY KEY, legs TEXT, att TEXT, hands INTEGER)"
-      input_json = JSON.parse(%({"name": "varchar", "genre": "varchar"}))
-      str = ap.make_create_table_str("Movie", input_json)
-      str.should eq "CREATE TABLE Movie(id INTEGER PRIMARY KEY, name varchar, genre varchar)"
+      err.should be_false
+      input_json = JSON.parse(%({"name": "TEXT", "genre": "TEXT"}))
+      str,err = ap.make_create_table_str("Movie", input_json)
+      str.should eq "CREATE TABLE Movie(id INTEGER PRIMARY KEY, name TEXT, genre TEXT)"
+      err.should be_false
+      input_json = JSON.parse(%({"legs": "TEXT", "att": "TEXT", "hands": "INTEGER", "ID": "serial"}))
+      str,err = ap.make_create_table_str("Monkey", input_json)
+      str.should eq "CREATE TABLE Monkey(id INTEGER PRIMARY KEY, legs TEXT, att TEXT, hands INTEGER, ID serial)"
+      err.should be_true
+      input_json = JSON.parse(%({"legs": "TEXT", "att": "TEXT", "hands": "INTEGER", "id": "TEXT"}))
+      str,err = ap.make_create_table_str("Monkey", input_json)
+      str.should eq "CREATE TABLE Monkey(id INTEGER PRIMARY KEY, legs TEXT, att TEXT, hands INTEGER, id TEXT)"
+      err.should be_true
       ap.db_engine = "postgres"
-      str = ap.make_create_table_str("Movie", input_json)
+      input_json = JSON.parse(%({"name": "varchar", "genre": "varchar"}))
+      str,err = ap.make_create_table_str("Movie", input_json)
       str.should eq "CREATE TABLE Movie(id SERIAL, name varchar, genre varchar)"
-      str = ap.make_create_table_str("Mov%$ie", input_json)
+      err.should be_false
+      str,err = ap.make_create_table_str("Mov%$ie", input_json)
       str.should eq "CREATE TABLE Movie(id SERIAL, name varchar, genre varchar)"
+      err.should be_false
       input_json = JSON.parse(%({"na@me": "varchar", "g!enre": "varchar"}))
-      str = ap.make_create_table_str("Mov%$ie", input_json)
+      str,err = ap.make_create_table_str("Mov%$ie", input_json)
       str.should eq "CREATE TABLE Movie(id SERIAL, name varchar, genre varchar)"
-      str = ap.make_create_table_str("movieäß", input_json)
+      err.should be_false
+      str,err = ap.make_create_table_str("movieäß", input_json)
       str.should eq "CREATE TABLE movieäß(id SERIAL, name varchar, genre varchar)"
+      err.should be_false
+      input_json = JSON.parse(%({"name": "varchar", "genre": "varchar", "id": "varchar"}))
+      str,err = ap.make_create_table_str("Movie", input_json)
+      str.should eq "CREATE TABLE Movie(id SERIAL, name varchar, genre varchar, id varchar)"
+      err.should be_true
     end
   end
   describe "make_insert_str" do
@@ -87,6 +106,11 @@ if integration_test == "sqlite3"
       data = %({"name": "TEXT", "genre": "TEXT"})
       response = HTTP::Client.post("127.0.0.1:5800/object/movie", HTTP::Headers{"User-Agent" => "Crystal"}, data)
       response.body.should eq "DB::ExecResult(@rows_affected=0, @last_insert_id=0)"
+    end
+    it "POST an invalid json for creating table" do
+      data =%({"name": "TEXT", "id": "TEXT"})
+      response = HTTP::Client.post("http://127.0.0.1:5800/object/movie",HTTP::Headers{"User-Agent" => "Crystal"},data)
+      response.body.should eq %({"error":true,"description":"could not create table"})
     end
   end
   describe "POST /table_name" do
