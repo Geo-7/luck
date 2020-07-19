@@ -3,7 +3,8 @@ require "sqlite3"
 require "db"
 require "log"
 require "pg"
-#APIParser parses a HTTP request and make CRUD operation
+
+# APIParser parses a HTTP request and make CRUD operation
 class APIParser
   @db_host : String = ""
   @db_password : String = ""
@@ -11,13 +12,13 @@ class APIParser
   @db_engine : String = ""
   @listen_port : Int32 = 5700
   @db_url : String = ""
-  #TODO Fix this stupidity I create this dummy beacuse I can compile the app and because I open the connection in begin rescue 
-  # inside initialize method of APIParser 
+  # TODO Fix this stupidity I create this dummy beacuse I can compile the app and because I open the connection in begin rescue
+  # inside initialize method of APIParser
   @db : DB::Database = DB.open("sqlite3://dummy")
   getter listen_port
   setter db_engine
 
-  #reads environment variable and connect to db
+  # reads environment variable and connect to db
   def initialize
     get_env()
     begin
@@ -28,7 +29,8 @@ class APIParser
       abort("Could not connect to DB")
     end
   end
-  #find a verb and rest call 
+
+  # find a verb and rest call
   def parse(url, method, body)
     app = find_tag(url, 1)
     case app
@@ -42,11 +44,13 @@ class APIParser
       crud_object(app, obj_value, method, body)
     end
   end
-  #find HTTP resource request
+
+  # find HTTP resource request
   def find_tag(url, segment)
     parts = url.count("/")
+    #TODO should fix this
     if segment > parts
-      return false
+      return "false"
     end
     i = 0
     end_offset = 0
@@ -62,7 +66,8 @@ class APIParser
     end
     url[start..end_offset - 1]
   end
-  #creating table in database
+
+  # creating table in database
   def create_table(table_name, http_method, http_body)
     body = http_body.not_nil!
     table_json = JSON.parse(body.gets_to_end)
@@ -74,38 +79,50 @@ class APIParser
       ...
     end
   end
-  #create query for making new table
+
+  # create query for making new table
   def make_create_table_str(table_name, table_json)
     table_str = ""
-    table_json.as_h.each do |k|
-      table_str += ", " + k[0].to_s + " " + k[1].to_s
-    end
+    table_json.as_h.each { |k|
+      table_str = String.build { |s| s << table_str; s << ", "; s << make_alphanumeric(k[0].to_s); s << " "; s << k[1].to_s }
+    }
     case @db_engine
     when "sqlite3"
-      str = "CREATE TABLE #{table_name}(id INTEGER PRIMARY KEY#{table_str})"
+      "CREATE TABLE #{make_alphanumeric(table_name)}(id INTEGER PRIMARY KEY#{table_str})"
     when "postgres"
-      str = "CREATE TABLE #{table_name}(id SERIAL#{table_str})"
+      "CREATE TABLE #{make_alphanumeric(table_name)}(id SERIAL#{table_str})"
     else
-      str = ""
+      ""
     end
-    str
   end
-  #create query string for insert
+
+  # This is for safe table and column name it will delete every character except digit,alphabet,underscore,dash
+  def make_alphanumeric(name)
+    #(name.chars.select! { |x| x.alphanumeric? }).join
+    # name.gsub /[^\w\d_-]/, ""
+    name.gsub {|c| c.alphanumeric? ? c : nil}
+  end
+
+  # create query string for insert
   def make_insert_str(table_name, table_json)
-    value_str = ""
-    table_json.as_h.each do |k|
-      value_str += "'" + k[1].to_s + "', "
+    column_str = String.build { |s| table_json.as_h.each { |k| s << k[0].to_s; s << ", " } }
+    column_str = column_str[0, (column_str.size - 2)]
+    case @db_engine
+    when "sqlite3"
+      value_str = String.build { |s| table_json.as_h.each { |k| s << "?, " } }
+    when "postgres"
+      value_str = String.build { |s| i=0; table_json.as_h.each { |k| i+=1; s << "$#{i}, " } }
+    else
+      value_str =""
     end
-    value_str = value_str[0,(value_str.size - 2)]
-    column_str = ""
-    table_json.as_h.each do |k|
-      column_str += k[0].to_s + ", "
-    end
-    column_str = column_str[0,(column_str.size - 2)]
-    str = "INSERT INTO #{table_name}(#{column_str}) values(#{value_str})"
-    str
+    
+    value =[] of String
+    table_json.as_h.each { |k| value <<  k[1].to_s}
+    value_str = value_str[0, (value_str.size - 2)]
+    {"INSERT INTO #{table_name}(#{column_str}) values(#{value_str})",value}
   end
-  #find a HTTP verb
+
+  # find a HTTP verb
   def crud_object(table_name, obj_value, http_method, http_body)
     case http_method
     when "GET"
@@ -138,26 +155,56 @@ class APIParser
       result.to_json
     when "POST"
       insert_json = JSON.parse(http_body.not_nil!.gets_to_end)
-      @db.exec make_insert_str(table_name,insert_json)
+      request = make_insert_str(table_name, insert_json)
+      @db.exec request[0],args: request[1]
     when "PATCH"
       update_json = JSON.parse(http_body.not_nil!.gets_to_end)
-      @db.exec make_update_str(table_name,update_json)
+      request =  make_update_str(table_name, update_json)
+      @db.exec request[0],args: request[1]
     when "DELETE"
       delete_json = JSON.parse(http_body.not_nil!.gets_to_end)
-      @db.exec "DELETE from #{table_name} where id =#{delete_json["id"].to_s}"
-    end
-  end
-  # make update query string
-  def make_update_str(table_name,update_json)
-    query ="UPDATE #{table_name} SET "
-    update_json.as_h.each do |k,v|
-      if k !="id"
-        query += "#{k}='#{v}', "
+      case @db_engine
+      when "sqlite3"
+        @db.exec "DELETE from #{table_name} where id =?",delete_json["id"].as_i64
+      when "postgres"
+        @db.exec "DELETE from #{table_name} where id =$1",delete_json["id"].as_i64
       end
     end
-    query = query[0,(query.size-2)]
-    query += " WHERE id=#{update_json["id"].to_s}"
   end
+
+  # make update query string
+  def make_update_str(table_name, update_json)
+    request =[] of String
+    query = "UPDATE #{table_name} SET "
+    i = 1
+    update_json.as_h.each do |k, v|
+      if k != "id"
+        case @db_engine
+        when "sqlite3"
+          query += "#{k}=?, "
+        when "postgres"
+          query += "#{k}=$#{i}, "
+        else
+          query += "#{k}=?, "
+        end
+        i+=1
+        request << v.to_s
+      end
+    end
+    request << update_json["id"].to_s
+    query = query[0, (query.size - 2)]
+    case @db_engine
+    when "sqlite3"
+      query += " WHERE id=?"
+    when "postgres"
+      query += " WHERE id=$#{i}"
+    else
+      query += " WHERE id=?"
+    end
+    
+    {query,request}
+  end
+
   # dummy reflection
   def cast_type(value)
     value = value.to_s
@@ -174,7 +221,8 @@ class APIParser
       end
     end
   end
-  #reads environment varibale
+
+  # reads environment varibale
   def get_env
     begin
       key = "RANDOM1400vat2412armAMDbobomiz44"
@@ -197,7 +245,8 @@ class APIParser
       ex.message
     end
   end
-  #decrypt data
+
+  # decrypt data
   def decrypt(data, key, iv)
     decipher = OpenSSL::Cipher.new "aes-256-cbc"
     decipher.decrypt
