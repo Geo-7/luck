@@ -18,6 +18,7 @@ describe APIParser do
   end
   describe "make_create_table_str" do
     it "Gets a json and make query to create corrosponding table" do
+      ap.db_engine = "sqlite3"
       input_json = JSON.parse(%({"legs": "TEXT", "att": "TEXT", "hands": "INTEGER"}))
       str = ap.make_create_table_str("Monkey", input_json)
       str.should eq "CREATE TABLE Monkey(id INTEGER PRIMARY KEY, legs TEXT, att TEXT, hands INTEGER)"
