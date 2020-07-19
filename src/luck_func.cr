@@ -8,7 +8,7 @@ require "pg"
 class APIParser
   @db_host : String = ""
   @db_password : String = ""
-  @db_name : String = "luck.db"
+  @db_name : String = ""
   @db_engine : String = ""
   @listen_port : Int32 = 5700
   @db_url : String = ""
@@ -48,7 +48,7 @@ class APIParser
   # find HTTP resource request
   def find_tag(url, segment)
     parts = url.count("/")
-    #TODO should fix this
+    # TODO should fix this
     if segment > parts
       return "false"
     end
@@ -73,34 +73,40 @@ class APIParser
     table_json = JSON.parse(body.gets_to_end)
     case http_method
     when "POST"
-      query = make_create_table_str(table_name, table_json)
-      @db.exec(query)
-    else
-      ...
+      query,error = make_create_table_str(table_name, table_json)
+      if !error
+        @db.exec(query)
+      else
+        {"error": true,"description": "could not create table"}.to_json
+      end
     end
   end
 
   # create query for making new table
   def make_create_table_str(table_name, table_json)
     table_str = ""
-    table_json.as_h.each { |k|
-      table_str = String.build { |s| s << table_str; s << ", "; s << make_alphanumeric(k[0].to_s); s << " "; s << k[1].to_s }
-    }
+    error = false
+    table_json.as_h.each { |k| if k[0].to_s.downcase == "id"
+      error = true
+    end
+    table_str = String.build { |s|
+      s << table_str; s << ", "; s << make_alphanumeric(k[0].to_s); s << " "; s << k[1].to_s
+    } }
     case @db_engine
     when "sqlite3"
-      "CREATE TABLE #{make_alphanumeric(table_name)}(id INTEGER PRIMARY KEY#{table_str})"
+      {"CREATE TABLE #{make_alphanumeric(table_name)}(id INTEGER PRIMARY KEY#{table_str})",error}
     when "postgres"
-      "CREATE TABLE #{make_alphanumeric(table_name)}(id SERIAL#{table_str})"
+      {"CREATE TABLE #{make_alphanumeric(table_name)}(id SERIAL#{table_str})",error}
     else
-      ""
+      {"",true}
     end
   end
 
   # This is for safe table and column name it will delete every character except digit,alphabet,underscore,dash
   def make_alphanumeric(name)
-    #(name.chars.select! { |x| x.alphanumeric? }).join
+    # (name.chars.select! { |x| x.alphanumeric? }).join
     # name.gsub /[^\w\d_-]/, ""
-    name.gsub {|c| c.alphanumeric? ? c : nil}
+    name.gsub { |c| c.alphanumeric? ? c : nil }
   end
 
   # create query string for insert
@@ -111,15 +117,15 @@ class APIParser
     when "sqlite3"
       value_str = String.build { |s| table_json.as_h.each { |k| s << "?, " } }
     when "postgres"
-      value_str = String.build { |s| i=0; table_json.as_h.each { |k| i+=1; s << "$#{i}, " } }
+      value_str = String.build { |s| i = 0; table_json.as_h.each { |k| i += 1; s << "$#{i}, " } }
     else
-      value_str =""
+      value_str = ""
     end
-    
-    value =[] of String
-    table_json.as_h.each { |k| value <<  k[1].to_s}
+
+    value = [] of String
+    table_json.as_h.each { |k| value << k[1].to_s }
     value_str = value_str[0, (value_str.size - 2)]
-    {"INSERT INTO #{table_name}(#{column_str}) values(#{value_str})",value}
+    {"INSERT INTO #{table_name}(#{column_str}) values(#{value_str})", value}
   end
 
   # find a HTTP verb
@@ -156,25 +162,25 @@ class APIParser
     when "POST"
       insert_json = JSON.parse(http_body.not_nil!.gets_to_end)
       request = make_insert_str(table_name, insert_json)
-      @db.exec request[0],args: request[1]
+      @db.exec request[0], args: request[1]
     when "PATCH"
       update_json = JSON.parse(http_body.not_nil!.gets_to_end)
-      request =  make_update_str(table_name, update_json)
-      @db.exec request[0],args: request[1]
+      request = make_update_str(table_name, update_json)
+      @db.exec request[0], args: request[1]
     when "DELETE"
       delete_json = JSON.parse(http_body.not_nil!.gets_to_end)
       case @db_engine
       when "sqlite3"
-        @db.exec "DELETE from #{table_name} where id =?",delete_json["id"].as_i64
+        @db.exec "DELETE from #{table_name} where id =?", delete_json["id"].as_i64
       when "postgres"
-        @db.exec "DELETE from #{table_name} where id =$1",delete_json["id"].as_i64
+        @db.exec "DELETE from #{table_name} where id =$1", delete_json["id"].as_i64
       end
     end
   end
 
   # make update query string
   def make_update_str(table_name, update_json)
-    request =[] of String
+    request = [] of String
     query = "UPDATE #{table_name} SET "
     i = 1
     update_json.as_h.each do |k, v|
@@ -187,7 +193,7 @@ class APIParser
         else
           query += "#{k}=?, "
         end
-        i+=1
+        i += 1
         request << v.to_s
       end
     end
@@ -201,8 +207,8 @@ class APIParser
     else
       query += " WHERE id=?"
     end
-    
-    {query,request}
+
+    {query, request}
   end
 
   # dummy reflection
@@ -237,6 +243,8 @@ class APIParser
         @db_url = "postgres://#{@db_password}@#{@db_host}/#{@db_name}"
       when "sqlite3"
         @db_url = "sqlite3://#{@db_name}"
+      else
+        ...
       end
       @listen_port = (ENV.["luck_listen_port"] ||= "5800").to_i
     rescue ex
