@@ -3,15 +3,18 @@ require "sqlite3"
 require "db"
 require "log"
 require "pg"
+
 module LuckConfig
   extend self
   getter listen_port
   setter db_engine
-  def get_db_connection() 
+
+  def get_db_connection
   end
+
   # reads environment varibale
   def get_env
-    db =DB::Database
+    db = DB::Database
     begin
       key = "RANDOM1400vat2412armAMDbobomiz44"
       iv = "rtyu2000tpk43320"
@@ -40,8 +43,9 @@ module LuckConfig
     rescue
       abort("Could not connect to db")
     end
-    {db.not_nil!,db_engine.not_nil!,listen_port.not_nil!}
+    {db.not_nil!, db_engine.not_nil!, listen_port.not_nil!}
   end
+
   # decrypt data
   def decrypt(data, key, iv)
     decipher = OpenSSL::Cipher.new "aes-256-cbc"
@@ -54,13 +58,14 @@ module LuckConfig
     dec_data.to_s
   end
 end
+
 # APIParser parses a HTTP request and make CRUD operation
 class APIParser
   getter listen_port
   setter db_engine
 
   # reads environment variable and connect to db
-  def initialize(db : DB::Database, db_engine : String, listen_port : Int32 )
+  def initialize(db : DB::Database, db_engine : String, listen_port : Int32)
     @db_engine = db_engine
     @listen_port = listen_port
     @db = db
@@ -109,11 +114,11 @@ class APIParser
     table_json = JSON.parse(body.gets_to_end)
     case http_method
     when "POST"
-      query,error = make_create_table_str(table_name, table_json)
+      query, error = make_create_table_str(table_name, table_json)
       if !error
         @db.exec(query)
       else
-        {"error": true,"description": "could not create table"}.to_json
+        {"error": true, "description": "could not create table"}.to_json
       end
     end
   end
@@ -130,11 +135,11 @@ class APIParser
     } }
     case @db_engine
     when "sqlite3"
-      {"CREATE TABLE #{make_alphanumeric(table_name)}(id INTEGER PRIMARY KEY#{table_str})",error}
+      {"CREATE TABLE #{make_alphanumeric(table_name)}(id INTEGER PRIMARY KEY#{table_str})", error}
     when "postgres"
-      {"CREATE TABLE #{make_alphanumeric(table_name)}(id SERIAL#{table_str})",error}
+      {"CREATE TABLE #{make_alphanumeric(table_name)}(id SERIAL#{table_str})", error}
     else
-      {"",true}
+      {"", true}
     end
   end
 
@@ -264,7 +269,14 @@ class APIParser
     end
   end
 
-  
-
-  
+  def start
+    server = HTTP::Server.new() do |c|
+      c.response.content_type = "application/json"
+      c.response.print parse(c.request.path, c.request.method, c.request.body)
+    end
+    address = server.bind_tcp @listen_port
+    Log.info { "start listening on:" }
+    Log.info &.emit("#{address}")
+    server.listen
+  end
 end
