@@ -1,3 +1,3 @@
 require "spec"
-require "../src/luck_func"
+require "../src/luck_lib"
 require "http/client"
