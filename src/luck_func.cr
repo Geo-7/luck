@@ -3,31 +3,67 @@ require "sqlite3"
 require "db"
 require "log"
 require "pg"
-
+module LuckConfig
+  extend self
+  getter listen_port
+  setter db_engine
+  def get_db_connection() 
+  end
+  # reads environment varibale
+  def get_env
+    db =DB::Database
+    begin
+      key = "RANDOM1400vat2412armAMDbobomiz44"
+      iv = "rtyu2000tpk43320"
+      db_name = ENV.["luck_db_name"] ||= "luck.db"
+      db_engine = ENV.["luck_db_engine"] ||= "sqlite3"
+      case db_engine
+      when "postgres"
+        db_host = ENV.["luck_db_host"] ||= "127.0.0.1"
+        db_password = ENV.["luck_db_password"]
+        db_password = decrypt Base64.decode(db_password), key, iv ||= "moreluck"
+        db_url = "postgres://#{db_password}@#{db_host}/#{db_name}"
+      when "sqlite3"
+        db_url = "sqlite3://#{db_name}"
+      else
+        ...
+      end
+      listen_port = (ENV.["luck_listen_port"] ||= "5800").to_i
+    rescue ex
+      p ex.message
+      abort("DB connection string is not set ENV varibale")
+      ex.message
+    end
+    begin
+      db = DB.open(db_url.not_nil!)
+      Log.info &.emit "Connected to #{db_engine}"
+    rescue
+      abort("Could not connect to db")
+    end
+    {db.not_nil!,db_engine.not_nil!,listen_port.not_nil!}
+  end
+  # decrypt data
+  def decrypt(data, key, iv)
+    decipher = OpenSSL::Cipher.new "aes-256-cbc"
+    decipher.decrypt
+    decipher.key = key
+    decipher.iv = iv
+    dec_data = IO::Memory.new
+    dec_data.write decipher.update(data)
+    dec_data.write decipher.final
+    dec_data.to_s
+  end
+end
 # APIParser parses a HTTP request and make CRUD operation
 class APIParser
-  @db_host : String = ""
-  @db_password : String = ""
-  @db_name : String = ""
-  @db_engine : String = ""
-  @listen_port : Int32 = 5700
-  @db_url : String = ""
-  # TODO Fix this stupidity I create this dummy beacuse I can compile the app and because I open the connection in begin rescue
-  # inside initialize method of APIParser
-  @db : DB::Database = DB.open("sqlite3://dummy")
   getter listen_port
   setter db_engine
 
   # reads environment variable and connect to db
-  def initialize
-    get_env()
-    begin
-      @db = DB.open(@db_url)
-      Log.info &.emit "Connected to #{@db_engine}"
-    rescue exception
-      pp exception.message
-      abort("Could not connect to DB")
-    end
+  def initialize(db : DB::Database, db_engine : String, listen_port : Int32 )
+    @db_engine = db_engine
+    @listen_port = listen_port
+    @db = db
   end
 
   # find a verb and rest call
@@ -228,41 +264,7 @@ class APIParser
     end
   end
 
-  # reads environment varibale
-  def get_env
-    begin
-      key = "RANDOM1400vat2412armAMDbobomiz44"
-      iv = "rtyu2000tpk43320"
-      @db_name = ENV.["luck_db_name"] ||= "luck.db"
-      @db_engine = ENV.["luck_db_engine"] ||= "sqlite3"
-      case @db_engine
-      when "postgres"
-        @db_host = ENV.["luck_db_host"] ||= "127.0.0.1"
-        @db_password = ENV.["luck_db_password"]
-        @db_password = decrypt Base64.decode(@db_password), key, iv ||= "moreluck"
-        @db_url = "postgres://#{@db_password}@#{@db_host}/#{@db_name}"
-      when "sqlite3"
-        @db_url = "sqlite3://#{@db_name}"
-      else
-        ...
-      end
-      @listen_port = (ENV.["luck_listen_port"] ||= "5800").to_i
-    rescue ex
-      p ex.message
-      abort("DB connection string is not set ENV varibale")
-      ex.message
-    end
-  end
+  
 
-  # decrypt data
-  def decrypt(data, key, iv)
-    decipher = OpenSSL::Cipher.new "aes-256-cbc"
-    decipher.decrypt
-    decipher.key = key
-    decipher.iv = iv
-    dec_data = IO::Memory.new
-    dec_data.write decipher.update(data)
-    dec_data.write decipher.final
-    dec_data.to_s
-  end
+  
 end

@@ -1,6 +1,15 @@
 require "./spec_helper"
+describe LuckConfig do
+  describe "decrypt" do
+    it "Decrypts a data with aes-256-cbc algoritm" do
+      key = "RANDOM1400vat2412armAMDbobomiz44"
+      iv = "rtyu2000tpk43320"
+      LuckConfig.decrypt(Base64.decode("7DU1IDYjkyB9ZvGYBdv2HQ"), key, iv).should eq "luck:myDBpass57"
+    end
+  end
+end
 describe APIParser do
-  ap = APIParser.new
+  ap = APIParser.new(*LuckConfig.get_env)
   describe "find_tag" do
     it "find URL part which seperated by /" do
       ap.find_tag("podtan.com/api", 1).should eq "api"
@@ -89,13 +98,6 @@ describe APIParser do
       ap.cast_type("myName").should eq "myName"
     end
   end
-  describe "decrypt" do
-    it "Decrypts a data with aes-256-cbc algoritm" do
-      key = "RANDOM1400vat2412armAMDbobomiz44"
-      iv = "rtyu2000tpk43320"
-      ap.decrypt(Base64.decode("7DU1IDYjkyB9ZvGYBdv2HQ"), key, iv).should eq "luck:myDBpass57"
-    end
-  end
 end
 
 # #Integration Tests goes here
@@ -178,5 +180,10 @@ if integration_test == "postgres"
       response =HTTP::Client.patch("127.0.0.1:5800/movie",HTTP::Headers{"User-Agent" => "Crystal"}, update_json)
       response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=0)"
     end
+  end
+  it "POST an invalid json for creating table" do
+    data =%({"name": "varchar", "id": "varchar"})
+    response = HTTP::Client.post("http://127.0.0.1:5800/object/movie",HTTP::Headers{"User-Agent" => "Crystal"},data)
+    response.body.should eq %({"error":true,"description":"could not create table"})
   end
 end
