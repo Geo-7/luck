@@ -52,9 +52,14 @@ Updating data with id:
 `curl -X PATCH http://127.0.0.1:5800/movie --data '{"id":2,"genre":"Romance"}'`
 
 
-## Development
+## Testing
 
-...
+For testing you can use `crystal spec`
+for complete integration testing first run luck cms then from root directory  
+for sqlite3 integration testing:  
+`./test/sqlite.sh`  
+for postgres testing:  
+`./test/postgres.sh`  
 
 ## Contributing
 
