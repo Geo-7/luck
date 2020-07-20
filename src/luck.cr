@@ -1,7 +1,7 @@
 # Luck is a headless CMS
 require "http/server"
 require "log"
-require "./luck_func"
+require "./luck_lib"
 module Luck
   VERSION = "0.1.0"
   Log.info {"Program started"}
