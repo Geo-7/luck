@@ -54,7 +54,7 @@ Updating data with id:
 
 ## Testing
 
-For testing you can use `crystal spec`
+For testing you can use `crystal spec`  
 for complete integration testing first run luck cms then from root directory  
 for sqlite3 integration testing:  
 `./test/sqlite.sh`  
