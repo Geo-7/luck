@@ -143,7 +143,8 @@ class APIParser
     end
   end
 
-  # This is for safe table and column name it will delete every character except digit,alphabet,underscore,dash
+  # This is for safe table and column name it will delete every character except
+  # digit,alphabet,underscore,dash
   def make_alphanumeric(name)
     # (name.chars.select! { |x| x.alphanumeric? }).join
     # name.gsub /[^\w\d_-]/, ""
@@ -152,13 +153,16 @@ class APIParser
 
   # create query string for insert
   def make_insert_str(table_name, table_json)
-    column_str = String.build { |s| table_json.as_h.each { |k| s << k[0].to_s; s << ", " } }
+    column_str =
+      String.build { |s| table_json.as_h.each { |k| s << k[0].to_s; s << ", " } }
     column_str = column_str[0, (column_str.size - 2)]
     case @db_engine
     when "sqlite3"
-      value_str = String.build { |s| table_json.as_h.each { |k| s << "?, " } }
+      value_str =
+        String.build { |s| table_json.as_h.each { |k| s << "?, " } }
     when "postgres"
-      value_str = String.build { |s| i = 0; table_json.as_h.each { |k| i += 1; s << "$#{i}, " } }
+      value_str =
+        String.build { |s| i = 0; table_json.as_h.each { |k| i += 1; s << "$#{i}, " } }
     else
       value_str = ""
     end
@@ -175,7 +179,17 @@ class APIParser
     when "GET"
       # result_array = [] of DB::Any
       # TODO I should fix a type of result_array
-      result_array = [] of (Array(PG::BoolArray) | Array(PG::CharArray) | Array(PG::Float32Array) | Array(PG::Float64Array) | Array(PG::Int16Array) | Array(PG::Int32Array) | Array(PG::Int64Array) | Array(PG::NumericArray) | Array(PG::StringArray) | Array(PG::TimeArray) | Bool | Char | Float32 | Float64 | Int16 | Int32 | Int64 | JSON::Any | PG::Geo::Box | PG::Geo::Circle | PG::Geo::Line | PG::Geo::LineSegment | PG::Geo::Path | PG::Geo::Point | PG::Geo::Polygon | PG::Numeric | Slice(UInt8) | String | Time | UInt32 | Nil)
+      result_array =
+        [] of (Array(PG::BoolArray) | Array(PG::CharArray) |
+               Array(PG::Float32Array) | Array(PG::Float64Array) |
+               Array(PG::Int16Array) | Array(PG::Int32Array) |
+               Array(PG::Int64Array) | Array(PG::NumericArray) |
+               Array(PG::StringArray) | Array(PG::TimeArray) |
+               Bool | Char | Float32 | Float64 | Int16 | Int32 |
+               Int64 | JSON::Any | PG::Geo::Box | PG::Geo::Circle |
+               PG::Geo::Line | PG::Geo::LineSegment | PG::Geo::Path |
+               PG::Geo::Point | PG::Geo::Polygon | PG::Numeric |
+               Slice(UInt8) | String | Time | UInt32 | Nil)
       column_names = [] of String
       @db.query_all "select * from #{table_name}" do |rs|
         column_names = rs.column_names
