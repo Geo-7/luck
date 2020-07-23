@@ -177,41 +177,47 @@ class APIParser
   def crud_object(table_name, obj_value, http_method, http_body)
     case http_method
     when "GET"
-      # result_array = [] of DB::Any
-      # TODO I should fix a type of result_array
-      result_array =
-        [] of (Array(PG::BoolArray) | Array(PG::CharArray) |
-               Array(PG::Float32Array) | Array(PG::Float64Array) |
-               Array(PG::Int16Array) | Array(PG::Int32Array) |
-               Array(PG::Int64Array) | Array(PG::NumericArray) |
-               Array(PG::StringArray) | Array(PG::TimeArray) |
-               Bool | Char | Float32 | Float64 | Int16 | Int32 |
-               Int64 | JSON::Any | PG::Geo::Box | PG::Geo::Circle |
-               PG::Geo::Line | PG::Geo::LineSegment | PG::Geo::Path |
-               PG::Geo::Point | PG::Geo::Polygon | PG::Numeric |
-               Slice(UInt8) | String | Time | UInt32 | Nil)
-      column_names = [] of String
-      @db.query_all "select * from #{table_name}" do |rs|
-        column_names = rs.column_names
-        rs.column_names.each do
-          result_array << rs.read
-        end
-      end
-      i = 0
-      j = 0
       result = [] of JSON::Any
-      (result_array.size/column_names.size).to_i32.times do
-        result_json = JSON.build do |json|
-          json.object do
-            column_names.size.times do
-              json.field column_names[i], cast_type(result_array[j])
-              i += 1
-              j += 1
-            end
+      case @db_engine
+      when "sqlite3"
+        # result_array = [] of DB::Any
+        # TODO I should fix a type of result_array
+        result_array =
+          [] of (Array(PG::BoolArray) | Array(PG::CharArray) |
+                 Array(PG::Float32Array) | Array(PG::Float64Array) |
+                 Array(PG::Int16Array) | Array(PG::Int32Array) |
+                 Array(PG::Int64Array) | Array(PG::NumericArray) |
+                 Array(PG::StringArray) | Array(PG::TimeArray) |
+                 Bool | Char | Float32 | Float64 | Int16 | Int32 |
+                 Int64 | JSON::Any | PG::Geo::Box | PG::Geo::Circle |
+                 PG::Geo::Line | PG::Geo::LineSegment | PG::Geo::Path |
+                 PG::Geo::Point | PG::Geo::Polygon | PG::Numeric |
+                 Slice(UInt8) | String | Time | UInt32 | Nil)
+        column_names = [] of String
+        @db.query_all "select * from #{table_name}" do |rs|
+          column_names = rs.column_names
+          rs.column_names.each do
+            result_array << rs.read
           end
         end
         i = 0
-        result << (JSON.parse(result_json))
+        j = 0
+        (result_array.size/column_names.size).to_i32.times do
+          result_json = JSON.build do |json|
+            json.object do
+              column_names.size.times do
+                json.field column_names[i], cast_type(result_array[j])
+                i += 1
+                j += 1
+              end
+            end
+          end
+          i = 0
+          result << (JSON.parse(result_json))
+        end
+        result.to_json
+      when "postgres"
+        result = @db.query_all "select row_to_json(#{table_name}) from #{table_name}", as: JSON::Any
       end
       result.to_json
     when "POST"
