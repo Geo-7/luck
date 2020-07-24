@@ -104,46 +104,61 @@ end
 integration_test = ENV["integration_test"] ||= "false"
 table_name = "movie" + Time.utc.to_s("%s")
 if integration_test == "sqlite3"
-  describe "POST /object/table_name" do
-    it "POST a table json and make a table" do
-      data = %({"name": "TEXT", "genre": "TEXT"})
-      response = HTTP::Client.post("127.0.0.1:5800/object/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
-      response.body.should eq "DB::ExecResult(@rows_affected=0, @last_insert_id=0)"
-    end
-    it "POST an invalid json for creating table" do
-      data =%({"name": "TEXT", "id": "TEXT"})
-      response = HTTP::Client.post("http://127.0.0.1:5800/object/#{table_name}",HTTP::Headers{"User-Agent" => "Crystal"},data)
-      response.body.should eq %({"error":true,"description":"could not create table"})
-    end
+  channel =Channel(Nil).new
+  spawn same_thread: false do
+    ap = APIParser.new(*LuckConfig.get_env)
+    ap.start()
   end
-  describe "POST /table_name" do
-    it "Insert data to a table with a POST" do
-      data = %({"name": "her", "genre": "SCI-FI"})
-      response = HTTP::Client.post("127.0.0.1:5800/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
-      response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=1)"
+  spawn same_thread: false do
+    i =20
+    while i >0
+      pp "#{i} seconds to start integration test of luck CMS"
+      sleep(1)
+      i-=1 
     end
-  end
-  describe "POST /table_name" do
-    it "Insert data to a table with a POST" do
-      data = %({"name": "her", "genre": "Romance"})
-      response = HTTP::Client.post("127.0.0.1:5800/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
-      response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=2)"
+    describe "POST /object/table_name" do
+      it "POST a table json and make a table" do
+        data = %({"name": "TEXT", "genre": "TEXT"})
+        response = HTTP::Client.post("127.0.0.1:5800/object/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
+        response.body.should eq "DB::ExecResult(@rows_affected=0, @last_insert_id=0)"
+      end
+      it "POST an invalid json for creating table" do
+        data =%({"name": "TEXT", "id": "TEXT"})
+        response = HTTP::Client.post("http://127.0.0.1:5800/object/#{table_name}",HTTP::Headers{"User-Agent" => "Crystal"},data)
+        response.body.should eq %({"error":true,"description":"could not create table"})
+      end
     end
-  end
-  describe "DELETE /table_name" do
-    it "It will delete a record from database with an its ID" do
-      delete_json = %({"id": 1})
-      response = HTTP::Client.delete("127.0.0.1:5800/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, delete_json)
-      response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=2)"
+    describe "POST /table_name" do
+      it "Insert data to a table with a POST" do
+        data = %({"name": "her", "genre": "SCI-FI"})
+        response = HTTP::Client.post("127.0.0.1:5800/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
+        response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=1)"
+      end
     end
-  end
-  describe "UPDATE /table_name" do
-    it "It will update a record in database" do
-      update_json = (%({"id": 2,"name": "Matrix", "genre": "SCI-FI"}))
-      response =HTTP::Client.patch("127.0.0.1:5800/#{table_name}",HTTP::Headers{"User-Agent" => "Crystal"}, update_json)
-      response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=2)"
+    describe "POST /table_name" do
+      it "Insert data to a table with a POST" do
+        data = %({"name": "her", "genre": "Romance"})
+        response = HTTP::Client.post("127.0.0.1:5800/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
+        response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=2)"
+      end
     end
+    describe "DELETE /table_name" do
+      it "It will delete a record from database with an its ID" do
+        delete_json = %({"id": 1})
+        response = HTTP::Client.delete("127.0.0.1:5800/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, delete_json)
+        response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=2)"
+      end
+    end
+    describe "UPDATE /table_name" do
+      it "It will update a record in database" do
+        update_json = (%({"id": 2,"name": "Matrix", "genre": "SCI-FI"}))
+        response =HTTP::Client.patch("127.0.0.1:5800/#{table_name}",HTTP::Headers{"User-Agent" => "Crystal"}, update_json)
+        response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=2)"
+      end
+    end
+    channel.send(nil)
   end
+  channel.receive
 end
 integration_test = ENV["integration_test"] ||= "false"
 if integration_test == "postgres"
