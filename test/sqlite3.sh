@@ -5,4 +5,4 @@ export luck_db_password="7DU1IDYjkyB9ZvGYBdv2HQ"
 export luck_db_engine="sqlite3"
 export luck_db_name="luck"
 export integration_test="sqlite3"
-crystal spec
+crystal spec -Dpreview_mt
