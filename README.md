@@ -3,6 +3,11 @@
 Luck is a headless CMS
 
 ## Installation
+First install shards:  
+`sudo apt install libsqlite3-dev`  
+Install sqlite3 development package  
+for ubuntu you can use apt:  
+`sudo apt install libsqlite3-dev`
 
 crystal build src/luck.cr --release
 
@@ -55,7 +60,7 @@ Updating data with id:
 ## Testing
 
 For testing you can use `crystal spec`  
-for complete integration testing first run luck cms then from root directory  
+for complete integration testing from root directory  
 for sqlite3 integration testing:  
 `./test/sqlite.sh`  
 for postgres testing:  
