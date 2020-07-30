@@ -4,9 +4,6 @@ version: 0.1.0
 authors:
   - george  george@1w1g.com
 dependencies:
-  sqlite3:
-    github: crystal-lang/crystal-sqlite3
-    branch: master
   pg:
     github: will/crystal-pg
     branch: master
