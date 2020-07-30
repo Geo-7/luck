@@ -1,5 +1,4 @@
 require "json"
-require "sqlite3"
 require "db"
 require "log"
 require "pg"
@@ -18,16 +17,14 @@ module LuckConfig
     begin
       key = "RANDOM1400vat2412armAMDbobomiz44"
       iv = "rtyu2000tpk43320"
-      db_name = ENV.["luck_db_name"] ||= "luck.db"
-      db_engine = ENV.["luck_db_engine"] ||= "sqlite3"
+      db_name = ENV.["luck_db_name"] ||= "luck"
+      db_engine = ENV.["luck_db_engine"] ||= "postgres"
       case db_engine
       when "postgres"
         db_host = ENV.["luck_db_host"] ||= "127.0.0.1"
         db_password = ENV.["luck_db_password"]
         db_password = decrypt Base64.decode(db_password), key, iv ||= "moreluck"
         db_url = "postgres://#{db_password}@#{db_host}/#{db_name}"
-      when "sqlite3"
-        db_url = "sqlite3://#{db_name}"
       else
         ...
       end
@@ -81,8 +78,8 @@ class APIParser
     when "nothing"
       return "noting"
     else
-      obj_value = find_tag(url, 2)
-      crud_object(app, obj_value, method, body)
+      verb = find_tag(url, 2)
+      crud_object(app, verb, method, body, url)
     end
   end
 
@@ -134,8 +131,6 @@ class APIParser
       s << table_str; s << ", "; s << make_alphanumeric(k[0].to_s); s << " "; s << k[1].to_s
     } }
     case @db_engine
-    when "sqlite3"
-      {"CREATE TABLE #{make_alphanumeric(table_name)}(id INTEGER PRIMARY KEY#{table_str})", error}
     when "postgres"
       {"CREATE TABLE #{make_alphanumeric(table_name)}(id SERIAL#{table_str})", error}
     else
@@ -157,9 +152,6 @@ class APIParser
       String.build { |s| table_json.as_h.each { |k| s << k[0].to_s; s << ", " } }
     column_str = column_str[0, (column_str.size - 2)]
     case @db_engine
-    when "sqlite3"
-      value_str =
-        String.build { |s| table_json.as_h.each { |k| s << "?, " } }
     when "postgres"
       value_str =
         String.build { |s| i = 0; table_json.as_h.each { |k| i += 1; s << "$#{i}, " } }
@@ -174,50 +166,21 @@ class APIParser
   end
 
   # find a HTTP verb
-  def crud_object(table_name, obj_value, http_method, http_body)
+  def crud_object(table_name, verb, http_method, http_body, url)
     case http_method
     when "GET"
       result = [] of JSON::Any
       case @db_engine
-      when "sqlite3"
-        # result_array = [] of DB::Any
-        # TODO I should fix a type of result_array
-        result_array =
-          [] of (Array(PG::BoolArray) | Array(PG::CharArray) |
-                 Array(PG::Float32Array) | Array(PG::Float64Array) |
-                 Array(PG::Int16Array) | Array(PG::Int32Array) |
-                 Array(PG::Int64Array) | Array(PG::NumericArray) |
-                 Array(PG::StringArray) | Array(PG::TimeArray) |
-                 Bool | Char | Float32 | Float64 | Int16 | Int32 |
-                 Int64 | JSON::Any | PG::Geo::Box | PG::Geo::Circle |
-                 PG::Geo::Line | PG::Geo::LineSegment | PG::Geo::Path |
-                 PG::Geo::Point | PG::Geo::Polygon | PG::Numeric |
-                 Slice(UInt8) | String | Time | UInt32 | Nil)
-        column_names = [] of String
-        @db.query_all "select * from #{table_name}" do |rs|
-          column_names = rs.column_names
-          rs.column_names.each do
-            result_array << rs.read
-          end
-        end
-        i = 0
-        j = 0
-        (result_array.size/column_names.size).to_i32.times do
-          result_json = JSON.build do |json|
-            json.object do
-              column_names.size.times do
-                json.field column_names[i], cast_type(result_array[j])
-                i += 1
-                j += 1
-              end
-            end
-          end
-          i = 0
-          result << (JSON.parse(result_json))
-        end
-        result.to_json
       when "postgres"
-        result = @db.query_all "select row_to_json(#{table_name}) from #{table_name}", as: JSON::Any
+        case verb
+        when "false"
+          result = @db.query_all "select row_to_json(#{table_name}) from #{table_name}", as: JSON::Any
+        when "ID"
+          id = find_tag(url,3)
+          result = @db.query_one "SELECT row_to_json(#{table_name}) from #{table_name} where id =$1", id, as: JSON::Any
+        when "Exist"
+          ...
+        end
       end
       result.to_json
     when "POST"
@@ -231,8 +194,6 @@ class APIParser
     when "DELETE"
       delete_json = JSON.parse(http_body.not_nil!.gets_to_end)
       case @db_engine
-      when "sqlite3"
-        @db.exec "DELETE from #{table_name} where id =?", delete_json["id"].as_i64
       when "postgres"
         @db.exec "DELETE from #{table_name} where id =$1", delete_json["id"].as_i64
       end
@@ -247,8 +208,6 @@ class APIParser
     update_json.as_h.each do |k, v|
       if k != "id"
         case @db_engine
-        when "sqlite3"
-          query += "#{k}=?, "
         when "postgres"
           query += "#{k}=$#{i}, "
         else
@@ -261,8 +220,6 @@ class APIParser
     request << update_json["id"].to_s
     query = query[0, (query.size - 2)]
     case @db_engine
-    when "sqlite3"
-      query += " WHERE id=?"
     when "postgres"
       query += " WHERE id=$#{i}"
     else
@@ -270,23 +227,6 @@ class APIParser
     end
 
     {query, request}
-  end
-
-  # dummy reflection
-  def cast_type(value)
-    value = value.to_s
-    begin
-      value.to_f64
-    rescue exception
-      case value
-      when "false"
-        false
-      when "true"
-        true
-      else
-        value
-      end
-    end
   end
 
   def start
