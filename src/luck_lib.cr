@@ -60,6 +60,7 @@ end
 class APIParser
   getter listen_port
   setter db_engine
+  getter db
 
   # reads environment variable and connect to db
   def initialize(db : DB::Database, db_engine : String, listen_port : Int32)
@@ -165,6 +166,19 @@ class APIParser
     {"INSERT INTO #{table_name}(#{column_str}) values(#{value_str})", value}
   end
 
+  def make_filter_str(table_name, table_json : JSON::Any)
+    i = 1
+    str = ""
+    args = [] of String
+    table_json.as_h.each do |k, v|
+      str += "#{k}=$#{i} and "
+      args << v.to_s
+      i += 1
+    end
+    str = str[0..(str.size - 6)]
+    return {str, args}
+  end
+
   # find a HTTP verb
   def crud_object(table_name, verb, http_method, http_body, url)
     case http_method
@@ -176,10 +190,12 @@ class APIParser
         when "false"
           result = @db.query_all "select row_to_json(#{table_name}) from #{table_name}", as: JSON::Any
         when "ID"
-          id = find_tag(url,3)
+          id = find_tag(url, 3)
           result = @db.query_one "SELECT row_to_json(#{table_name}) from #{table_name} where id =$1", id, as: JSON::Any
         when "Exist"
-          ...
+          str, a = make_filter_str(table_name, JSON.parse(http_body.not_nil!.gets_to_end))
+          result = @db.query_one "SELECT id FROM #{table_name} where #{str}", args: a, as: Int32
+          result = JSON.parse(%({"id": #{result}}))
         end
       end
       result.to_json
