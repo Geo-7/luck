@@ -36,8 +36,10 @@ module LuckConfig
     end
     begin
       db = DB.open(db_url.not_nil!)
+      db.exec("CREATE TABLE IF NOT EXISTS luck_object(id serial,name varchar,definition json)")
       Log.info &.emit "Connected to #{db_engine}"
-    rescue
+    rescue ex
+      Log.info &.emit "#{ex}"
       abort("Could not connect to db")
     end
     {db.not_nil!, db_engine.not_nil!, listen_port.not_nil!}
@@ -79,7 +81,6 @@ class APIParser
       begin
         table_json = JSON.parse(body.not_nil!.gets_to_end)
       rescue
-        pp "rescued"
         return {"error" => true, "description" => "table definition is null", "err_id" => 1}.to_json
       end
       create_table(table_name, method, table_json)
@@ -119,7 +120,8 @@ class APIParser
     when "POST"
       query, error = make_create_table_str(table_name, table_json)
       if !error
-        @db.exec(query)
+        @db.exec "INSERT INTO luck_object(name,definition) values($1,$2)", args: [table_name,table_json.to_json]
+        @db.exec query
       else
         {"error" => true, "description" => "could not create table", "err_id" => 2}.to_json
       end
