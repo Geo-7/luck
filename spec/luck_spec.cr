@@ -85,7 +85,6 @@ if integration_test == "postgres"
   spawn do
     ap = APIParser.new(*LuckConfig.get_env)
     ap.start
-    channel.send(nil)
   end
   spawn do
     i = 3
@@ -94,84 +93,89 @@ if integration_test == "postgres"
       sleep(1)
       i -= 1
     end
+    luck_header = HTTP::Headers{"User-Agent"=>"Crystal"}
     describe "POST /object/table_name" do
       it "POST a table json and make a table" do
         data = %({"name": "varchar", "genre": "varchar"})
-        response = HTTP::Client.post("127.0.0.1:5800/object/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
+        response = HTTP::Client.post("127.0.0.1:5800/object/#{table_name}", luck_header, data)
         response.body.should eq "DB::ExecResult(@rows_affected=0, @last_insert_id=0)"
+      end
+      it "raise an error if table definition is nil" do 
+        response = HTTP::Client.post("127.0.0.1:5800/object/#{table_name}", luck_header)
+        response.body.should eq %({"error":true,"description":"table definition is null","err_id":1})
       end
     end
     describe "POST /table_name" do
       it "Insert data to a table with a POST" do
         data = %({"name": "her", "genre": "Romance"})
-        response = HTTP::Client.post("127.0.0.1:5800/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
+        response = HTTP::Client.post("127.0.0.1:5800/#{table_name}", luck_header, data)
         response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=0)"
       end
       it "checks if data inserted correctly" do
-        response = HTTP::Client.get("127.0.0.1:5800/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"})
+        response = HTTP::Client.get("127.0.0.1:5800/#{table_name}", luck_header)
         response.body.should eq %([{"id":1,"name":"her","genre":"Romance"}])
       end
     end
     describe "POST /table_name" do
       it "Insert data to a table with a POST" do
         data = %({"name": "her", "genre": "Romance"})
-        response = HTTP::Client.post("127.0.0.1:5800/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
+        response = HTTP::Client.post("127.0.0.1:5800/#{table_name}", luck_header, data)
         response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=0)"
       end
       it "checks if data inserted correctly" do
-        response = HTTP::Client.get("127.0.0.1:5800/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"})
+        response = HTTP::Client.get("127.0.0.1:5800/#{table_name}", luck_header)
         response.body.should eq %([{"id":1,"name":"her","genre":"Romance"},{"id":2,"name":"her","genre":"Romance"}])
       end
       it "checks if data inserted correctly" do
-        response = HTTP::Client.get("127.0.0.1:5800/#{table_name}/ID/1", HTTP::Headers{"User-Agent" => "Crystal"})
+        response = HTTP::Client.get("127.0.0.1:5800/#{table_name}/ID/1", luck_header)
         response.body.should eq %({"id":1,"name":"her","genre":"Romance"})
       end
       it "checks if data inserted correctly" do
-        response = HTTP::Client.get("127.0.0.1:5800/#{table_name}/ID/2", HTTP::Headers{"User-Agent" => "Crystal"})
+        response = HTTP::Client.get("127.0.0.1:5800/#{table_name}/ID/2", luck_header)
         response.body.should eq %({"id":2,"name":"her","genre":"Romance"})
       end
     end
     describe "UPDATE /table_name" do
       it "It will update a record in database" do
         update_json = (%({"id": 2,"name": "Matrix", "genre": "SCI-FI"}))
-        response = HTTP::Client.patch("127.0.0.1:5800/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, update_json)
+        response = HTTP::Client.patch("127.0.0.1:5800/#{table_name}", luck_header, update_json)
         response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=0)"
       end
       it "checks if data inserted correctly" do
-        response = HTTP::Client.get("127.0.0.1:5800/#{table_name}/ID/2", HTTP::Headers{"User-Agent" => "Crystal"})
+        response = HTTP::Client.get("127.0.0.1:5800/#{table_name}/ID/2", luck_header)
         response.body.should eq %({"id":2,"name":"Matrix","genre":"SCI-FI"})
       end
     end
     it "Checks if filter works fine" do
       json_str = %({"name": "Matrix", "genre": "SCI-FI"})
-      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",HTTP::Headers{"User-Agent" => "Crystal"},json_str)
+      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",luck_header,json_str)
       response.body.should eq %({"id":2}) 
     end
     it "Checks if filter works fine" do
       json_str = %({"name": "Matrix"})
-      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",HTTP::Headers{"User-Agent" => "Crystal"},json_str)
+      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",luck_header,json_str)
       response.body.should eq %({"id":2}) 
     end
     it "Checks if filter works fine" do
       json_str = %({"genre": "SCI-FI"})
-      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",HTTP::Headers{"User-Agent" => "Crystal"},json_str)
+      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",luck_header,json_str)
       response.body.should eq %({"id":2}) 
     end
     it "Checks if filter works fine" do
       json_str = %({"genre": "Romance"})
-      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",HTTP::Headers{"User-Agent" => "Crystal"},json_str)
+      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",luck_header,json_str)
       response.body.should eq %({"id":1}) 
     end
     it "Checks if filter works fine" do
       json_str = %({"name": "her"})
-      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",HTTP::Headers{"User-Agent" => "Crystal"},json_str)
+      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",luck_header,json_str)
       response.body.should eq %({"id":1}) 
     end
     
     it "POST an invalid json for creating table" do
       data = %({"name": "varchar", "id": "varchar"})
-      response = HTTP::Client.post("http://127.0.0.1:5800/object/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
-      response.body.should eq %({"error":true,"description":"could not create table"})
+      response = HTTP::Client.post("http://127.0.0.1:5800/object/#{table_name}",luck_header, data)
+      response.body.should eq %({"error":true,"description":"could not create table","err_id":2})
     end
     it "Delete the created table" do
       ap = APIParser.new(*LuckConfig.get_env)
