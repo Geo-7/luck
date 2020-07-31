@@ -75,7 +75,14 @@ class APIParser
     case app
     when "object"
       table_name = find_tag(url, 2)
-      create_table(table_name, method, body)
+      table_json : JSON::Any
+      begin
+        table_json = JSON.parse(body.not_nil!.gets_to_end)
+      rescue
+        pp "rescued"
+        return {"error" => true, "description" => "table definition is null", "err_id" => 1}.to_json
+      end
+      create_table(table_name, method, table_json)
     when "nothing"
       return "noting"
     else
@@ -107,16 +114,14 @@ class APIParser
   end
 
   # creating table in database
-  def create_table(table_name, http_method, http_body)
-    body = http_body.not_nil!
-    table_json = JSON.parse(body.gets_to_end)
+  def create_table(table_name, http_method, table_json)
     case http_method
     when "POST"
       query, error = make_create_table_str(table_name, table_json)
       if !error
         @db.exec(query)
       else
-        {"error": true, "description": "could not create table"}.to_json
+        {"error" => true, "description" => "could not create table", "err_id" => 2}.to_json
       end
     end
   end
