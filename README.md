@@ -1,6 +1,6 @@
 # luck
 
-Luck is a headless CMS
+Luck is a sample REST API.
 
 ## Installation
 First install shards:  
