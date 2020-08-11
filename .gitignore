@@ -4,6 +4,6 @@
 /.shards/
 *.dwarf
 /.vscode/
-dummy
+luck
 luck.db
 set.sh
