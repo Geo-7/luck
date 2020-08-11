@@ -1,6 +1,7 @@
 require "json"
 require "db"
 require "log"
+require "./cruder"
 require "./cruder_sqlite3"
 require "./cruder_postgres"
 
@@ -67,6 +68,7 @@ class APIParser
   getter listen_port
   setter db_engine
   getter db_url
+  cruder_engine: Cruder
 
   # reads environment variable and connect to db
   def initialize(db : DB::Database, db_engine : String, listen_port : Int32, db_url : String)
@@ -74,6 +76,13 @@ class APIParser
     @listen_port = listen_port
     @db = db
     @db_url = db_url
+    @cruder_engine =CruderSqlite3.new(@db_url.not_nil!)
+    case db_engine
+    when "sqlite3"
+      @cruder_engine =CruderSqlite3.new(@db_url.not_nil!)
+    when "postgres"
+      @cruder_engine =CruderPostgres.new(@db_url.not_nil!)
+    end
   end
 
   # find a verb and rest call
@@ -201,23 +210,9 @@ class APIParser
     case http_method
     when "GET"
       result = [] of JSON::Any
-      case @db_engine
-      when "sqlite3"
-        c = CruderSqlite3.new(@db_url.not_nil!)
-        result = c.read(table_name)
-      when "postgres"
-        case verb
-        when "false"
-          result = @db.query_all "select row_to_json(#{table_name}) from #{table_name}", as: JSON::Any
-        when "ID"
-          id = find_tag(url, 3)
-          result = @db.query_one "SELECT row_to_json(#{table_name}) from #{table_name} where id =$1", id, as: JSON::Any
-        when "Exist"
-          str, a = make_filter_str(table_name, JSON.parse(http_body.not_nil!.gets_to_end))
-          result = @db.query_one "SELECT id FROM #{table_name} where #{str}", args: a, as: Int32
-          result = JSON.parse(%({"id": #{result}}))
-        end
-      end
+
+      result = @cruder_engine.read(table_name,verb,find_tag(url, 3),http_body)
+
       result.to_json
     when "POST"
       insert_json = JSON.parse(http_body.not_nil!.gets_to_end)

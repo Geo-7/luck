@@ -1,6 +1,5 @@
-require "./cruder"
-require "db"
 require "sqlite3"
+require "./cruder"
 
 class CruderSqlite3 < Cruder
   @db : DB::Database
@@ -9,7 +8,7 @@ class CruderSqlite3 < Cruder
     @db = DB.open(db_url)
   end
 
-  def read(table_name)
+  def read(table_name,verb,id,http_body)
     result = [] of JSON::Any
     result_array = [] of DB::Any
     column_names = [] of String
