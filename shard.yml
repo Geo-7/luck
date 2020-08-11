@@ -7,6 +7,9 @@ dependencies:
   pg:
     github: will/crystal-pg
     branch: master
+  sqlite3:
+    github: crystal-lang/crystal-sqlite3
+    branch: master
 targets:
   luck:
     main: src/luck.cr
