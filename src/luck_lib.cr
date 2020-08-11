@@ -1,8 +1,9 @@
 require "json"
-require "sqlite3"
 require "db"
 require "log"
-require "pg"
+require "./cruder_sqlite3"
+require "./cruder_postgres"
+
 
 module LuckConfig
   extend self
@@ -43,7 +44,7 @@ module LuckConfig
     rescue
       abort("Could not connect to db")
     end
-    {db.not_nil!, db_engine.not_nil!, listen_port.not_nil!}
+    {db.not_nil!, db_engine.not_nil!, listen_port.not_nil!, db_url.not_nil!}
   end
 
   # decrypt data
@@ -63,12 +64,14 @@ end
 class APIParser
   getter listen_port
   setter db_engine
+  getter db_url
 
   # reads environment variable and connect to db
-  def initialize(db : DB::Database, db_engine : String, listen_port : Int32)
+  def initialize(db : DB::Database, db_engine : String, listen_port : Int32, db_url : String)
     @db_engine = db_engine
     @listen_port = listen_port
     @db = db
+    @db_url = db_url
   end
 
   # find a verb and rest call
@@ -180,42 +183,8 @@ class APIParser
       result = [] of JSON::Any
       case @db_engine
       when "sqlite3"
-        # result_array = [] of DB::Any
-        # TODO I should fix a type of result_array
-        result_array =
-          [] of (Array(PG::BoolArray) | Array(PG::CharArray) |
-                 Array(PG::Float32Array) | Array(PG::Float64Array) |
-                 Array(PG::Int16Array) | Array(PG::Int32Array) |
-                 Array(PG::Int64Array) | Array(PG::NumericArray) |
-                 Array(PG::StringArray) | Array(PG::TimeArray) |
-                 Bool | Char | Float32 | Float64 | Int16 | Int32 |
-                 Int64 | JSON::Any | PG::Geo::Box | PG::Geo::Circle |
-                 PG::Geo::Line | PG::Geo::LineSegment | PG::Geo::Path |
-                 PG::Geo::Point | PG::Geo::Polygon | PG::Numeric |
-                 Slice(UInt8) | String | Time | UInt32 | Nil)
-        column_names = [] of String
-        @db.query_all "select * from #{table_name}" do |rs|
-          column_names = rs.column_names
-          rs.column_names.each do
-            result_array << rs.read
-          end
-        end
-        i = 0
-        j = 0
-        (result_array.size/column_names.size).to_i32.times do
-          result_json = JSON.build do |json|
-            json.object do
-              column_names.size.times do
-                json.field column_names[i], cast_type(result_array[j])
-                i += 1
-                j += 1
-              end
-            end
-          end
-          i = 0
-          result << (JSON.parse(result_json))
-        end
-        result.to_json
+        c = CruderSqlite3.new(@db_url.not_nil!)
+        result = c.read(table_name)
       when "postgres"
         result = @db.query_all "select row_to_json(#{table_name}) from #{table_name}", as: JSON::Any
       end
@@ -272,23 +241,6 @@ class APIParser
     {query, request}
   end
 
-  # dummy reflection
-  def cast_type(value)
-    value = value.to_s
-    begin
-      value.to_f64
-    rescue exception
-      case value
-      when "false"
-        false
-      when "true"
-        true
-      else
-        value
-      end
-    end
-  end
-
   def start
     server = HTTP::Server.new() do |c|
       c.response.content_type = "application/json"
@@ -300,3 +252,4 @@ class APIParser
     server.listen
   end
 end
+
