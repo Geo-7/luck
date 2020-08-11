@@ -27,6 +27,8 @@ module LuckConfig
         db_password = ENV.["luck_db_password"]
         db_password = decrypt Base64.decode(db_password), key, iv ||= "moreluck"
         db_url = "postgres://#{db_password}@#{db_host}/#{db_name}"
+      when "sqlite3"
+        db_url = "sqlite3://#{db_name}"
       else
         ...
       end
@@ -142,6 +144,8 @@ class APIParser
       s << table_str; s << ", "; s << make_alphanumeric(k[0].to_s); s << " "; s << k[1].to_s
     } }
     case @db_engine
+    when "sqlite3"
+      {"CREATE TABLE #{make_alphanumeric(table_name)}(id INTEGER PRIMARY KEY#{table_str})", error}
     when "postgres"
       {"CREATE TABLE #{make_alphanumeric(table_name)}(id SERIAL#{table_str})", error}
     else
@@ -163,6 +167,9 @@ class APIParser
       String.build { |s| table_json.as_h.each { |k| s << k[0].to_s; s << ", " } }
     column_str = column_str[0, (column_str.size - 2)]
     case @db_engine
+    when "sqlite3"
+      value_str =
+        String.build { |s| table_json.as_h.each { |k| s << "?, " } }
     when "postgres"
       value_str =
         String.build { |s| i = 0; table_json.as_h.each { |k| i += 1; s << "$#{i}, " } }
@@ -223,6 +230,8 @@ class APIParser
     when "DELETE"
       delete_json = JSON.parse(http_body.not_nil!.gets_to_end)
       case @db_engine
+      when "sqlite3"
+        @db.exec "DELETE from #{table_name} where id =?", delete_json["id"].as_i64
       when "postgres"
         @db.exec "DELETE from #{table_name} where id =$1", delete_json["id"].as_i64
       end

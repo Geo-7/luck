@@ -130,12 +130,12 @@ if integration_test == "sqlite3"
       it "POST a table json and make a table" do
         data = %({"name": "TEXT", "genre": "TEXT"})
         response = HTTP::Client.post("127.0.0.1:5800/object/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
-        response.body.should eq "DB::ExecResult(@rows_affected=0, @last_insert_id=0)"
+        response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=1)"
       end
       it "POST an invalid json for creating table" do
         data = %({"name": "TEXT", "id": "TEXT"})
         response = HTTP::Client.post("http://127.0.0.1:5800/object/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
-        response.body.should eq %({"error":true,"description":"could not create table"})
+        response.body.should eq %({"error":true,"description":"could not create table",\"err_id\":2})
       end
     end
     describe "POST /table_name" do
