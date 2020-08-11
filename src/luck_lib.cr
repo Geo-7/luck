@@ -1,7 +1,9 @@
 require "json"
 require "db"
 require "log"
-require "pg"
+require "./cruder_sqlite3"
+require "./cruder_postgres"
+
 
 module LuckConfig
   extend self
@@ -42,7 +44,7 @@ module LuckConfig
       Log.info &.emit "#{ex}"
       abort("Could not connect to db")
     end
-    {db.not_nil!, db_engine.not_nil!, listen_port.not_nil!}
+    {db.not_nil!, db_engine.not_nil!, listen_port.not_nil!, db_url.not_nil!}
   end
 
   # decrypt data
@@ -62,13 +64,14 @@ end
 class APIParser
   getter listen_port
   setter db_engine
-  getter db
+  getter db_url
 
   # reads environment variable and connect to db
-  def initialize(db : DB::Database, db_engine : String, listen_port : Int32)
+  def initialize(db : DB::Database, db_engine : String, listen_port : Int32, db_url : String)
     @db_engine = db_engine
     @listen_port = listen_port
     @db = db
+    @db_url = db_url
   end
 
   # find a verb and rest call
@@ -192,6 +195,9 @@ class APIParser
     when "GET"
       result = [] of JSON::Any
       case @db_engine
+      when "sqlite3"
+        c = CruderSqlite3.new(@db_url.not_nil!)
+        result = c.read(table_name)
       when "postgres"
         case verb
         when "false"
@@ -263,3 +269,4 @@ class APIParser
     server.listen
   end
 end
+
