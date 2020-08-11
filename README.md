@@ -3,7 +3,9 @@
 Luck is a sample REST API.
 
 ## Installation
-First install shards:  
+Install Dependencies for debian based linux:  
+`sudo apt install libsqlite3-dev`
+Install shards:  
 `shards install`  
 Then build luck cms:  
 `crystal build src/luck.cr --release`  
@@ -27,6 +29,10 @@ you should encrypt it with openssl "aes-256-cbc" you can use my crystal app for 
 https://github.com/Geo-7/openssl_sample  
 and openssl_sample -e "username:password" -k "RANDOM1400vat2412armAMDbobomiz44" -i "rtyu2000tpk43320"  
 the output is encrypted base64 string.  
+
+Creating a new table with sqlite3 engine:  
+`curl -X POST http://127.0.0.1:5800/object/movie --data '{"name": "TEXT", "genre": "TEXT"}'`
+`curl -X POST http://127.0.0.1:5800/object/student --data '{"name" : "TEXT","age" : "integer", "city" : "TEXT"}'`
 
 Creating a new table with postgres engine:  
 `curl -X POST http://127.0.0.1:5600/object/movie --data '{"name": "varchar", "genre": "varchar"}'`
@@ -53,6 +59,8 @@ Updating data with id:
 
 For testing you can use `crystal spec`  
 for complete integration testing from root directory  
+for sqlite3 integration testing:  
+`./test/sqlite.sh`
 for postgres testing:  
 `./test/postgres.sh`  
 
