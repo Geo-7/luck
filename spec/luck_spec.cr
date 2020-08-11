@@ -113,29 +113,40 @@ end
 # #Integration Tests goes here
 integration_test = ENV["integration_test"] ||= "false"
 table_name = "movie" + Time.utc.to_s("%s")
-if integration_test == "sqlite3"
-  channel = Channel(Nil).new
+luck_header = HTTP::Headers{"User-Agent"=>"Crystal"}
+channel = Channel(Nil).new
+if integration_test !=false
   spawn same_thread: false do
     ap = APIParser.new(*LuckConfig.get_env)
     ap.start
   end
   spawn same_thread: false do
-    i = 10
+    i = 3
     while i > 0
       pp "#{i} seconds to start integration test of luck CMS"
       sleep(1)
       i -= 1
     end
+    it "raise an error if table definition is nil" do 
+      response = HTTP::Client.post("127.0.0.1:5800/object/#{table_name}", luck_header)
+      response.body.should eq %({"error":true,"description":"table definition is null","err_id":1})
+    end
+    it "POST an invalid json for creating table" do
+      data = %({"name": "varchar", "id": "varchar"})
+      response = HTTP::Client.post("http://127.0.0.1:5800/object/#{table_name}",luck_header, data)
+      response.body.should eq %({"error":true,"description":"could not create table","err_id":2})
+    end
+    channel.send(nil)
+  end
+  channel.receive
+end
+if integration_test == "sqlite3"
+  spawn same_thread: false do
     describe "POST /object/table_name" do
       it "POST a table json and make a table" do
         data = %({"name": "TEXT", "genre": "TEXT"})
         response = HTTP::Client.post("127.0.0.1:5800/object/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
         response.body.should eq "DB::ExecResult(@rows_affected=1, @last_insert_id=1)"
-      end
-      it "POST an invalid json for creating table" do
-        data = %({"name": "TEXT", "id": "TEXT"})
-        response = HTTP::Client.post("http://127.0.0.1:5800/object/#{table_name}", HTTP::Headers{"User-Agent" => "Crystal"}, data)
-        response.body.should eq %({"error":true,"description":"could not create table",\"err_id\":2})
       end
     end
     describe "POST /table_name" do
@@ -171,28 +182,13 @@ if integration_test == "sqlite3"
   channel.receive
 end
 if integration_test == "postgres"
-  channel = Channel(Nil).new
   spawn do
-    ap = APIParser.new(*LuckConfig.get_env)
-    ap.start
-  end
-  spawn do
-    i = 3
-    while i > 0
-      puts "#{i} seoconds to start integration test of luck CMS"
-      sleep(1)
-      i -= 1
-    end
     luck_header = HTTP::Headers{"User-Agent"=>"Crystal"}
     describe "POST /object/table_name" do
       it "POST a table json and make a table" do
         data = %({"name": "varchar", "genre": "varchar"})
         response = HTTP::Client.post("127.0.0.1:5800/object/#{table_name}", luck_header, data)
         response.body.should eq "DB::ExecResult(@rows_affected=0, @last_insert_id=0)"
-      end
-      it "raise an error if table definition is nil" do 
-        response = HTTP::Client.post("127.0.0.1:5800/object/#{table_name}", luck_header)
-        response.body.should eq %({"error":true,"description":"table definition is null","err_id":1})
       end
     end
     describe "POST /table_name" do
@@ -260,12 +256,6 @@ if integration_test == "postgres"
       json_str = %({"name": "her"})
       response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",luck_header,json_str)
       response.body.should eq %({"id":1}) 
-    end
-    
-    it "POST an invalid json for creating table" do
-      data = %({"name": "varchar", "id": "varchar"})
-      response = HTTP::Client.post("http://127.0.0.1:5800/object/#{table_name}",luck_header, data)
-      response.body.should eq %({"error":true,"description":"could not create table","err_id":2})
     end
     it "Delete the created table" do
       ap = APIParser.new(*LuckConfig.get_env)
