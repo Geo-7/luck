@@ -4,85 +4,24 @@ require "log"
 require "./cruder"
 require "./cruder_sqlite3"
 require "./cruder_postgres"
+require "./luck_config"
 
 
-module LuckConfig
-  extend self
-  getter listen_port
-  setter db_engine
 
-  def get_db_connection
-  end
-
-  # reads environment varibale
-  def get_env
-    db = DB::Database
-    begin
-      key = "RANDOM1400vat2412armAMDbobomiz44"
-      iv = "rtyu2000tpk43320"
-      db_name = ENV.["luck_db_name"] ||= "luck"
-      db_engine = ENV.["luck_db_engine"] ||= "postgres"
-      case db_engine
-      when "postgres"
-        db_host = ENV.["luck_db_host"] ||= "127.0.0.1"
-        db_password = ENV.["luck_db_password"]
-        db_password = decrypt Base64.decode(db_password), key, iv ||= "moreluck"
-        db_url = "postgres://#{db_password}@#{db_host}/#{db_name}"
-      when "sqlite3"
-        db_url = "sqlite3://#{db_name}"
-      else
-        ...
-      end
-      listen_port = (ENV.["luck_listen_port"] ||= "5800").to_i
-    rescue ex
-      p ex.message
-      abort("DB connection string is not set ENV varibale")
-      ex.message
-    end
-    begin
-      db = DB.open(db_url.not_nil!)
-      db.exec("CREATE TABLE IF NOT EXISTS luck_object(id serial,name varchar,definition json)")
-      Log.info &.emit "Connected to #{db_engine}"
-    rescue ex
-      Log.info &.emit "#{ex}"
-      abort("Could not connect to db")
-    end
-    {db.not_nil!, db_engine.not_nil!, listen_port.not_nil!, db_url.not_nil!}
-  end
-
-  # decrypt data
-  def decrypt(data, key, iv)
-    decipher = OpenSSL::Cipher.new "aes-256-cbc"
-    decipher.decrypt
-    decipher.key = key
-    decipher.iv = iv
-    dec_data = IO::Memory.new
-    dec_data.write decipher.update(data)
-    dec_data.write decipher.final
-    dec_data.to_s
-  end
-end
 
 # APIParser parses a HTTP request and make CRUD operation
 class APIParser
   getter listen_port
   setter db_engine
-  getter db_url
-  cruder_engine: Cruder
+  setter cruder_engine
+  setter db : DB::Database
 
   # reads environment variable and connect to db
-  def initialize(db : DB::Database, db_engine : String, listen_port : Int32, db_url : String)
+  def initialize(listen_port : Int32, cruder_engine : Cruder, db_engine : String)
     @db_engine = db_engine
     @listen_port = listen_port
-    @db = db
-    @db_url = db_url
-    @cruder_engine =CruderSqlite3.new(@db_url.not_nil!)
-    case db_engine
-    when "sqlite3"
-      @cruder_engine =CruderSqlite3.new(@db_url.not_nil!)
-    when "postgres"
-      @cruder_engine =CruderPostgres.new(@db_url.not_nil!)
-    end
+    @cruder_engine =cruder_engine
+    @db = cruder_engine.db
   end
 
   # find a verb and rest call
@@ -192,27 +131,12 @@ class APIParser
     {"INSERT INTO #{table_name}(#{column_str}) values(#{value_str})", value}
   end
 
-  def make_filter_str(table_name, table_json : JSON::Any)
-    i = 1
-    str = ""
-    args = [] of String
-    table_json.as_h.each do |k, v|
-      str += "#{k}=$#{i} and "
-      args << v.to_s
-      i += 1
-    end
-    str = str[0..(str.size - 6)]
-    return {str, args}
-  end
-
   # find a HTTP verb
   def crud_object(table_name, verb, http_method, http_body, url)
     case http_method
     when "GET"
       result = [] of JSON::Any
-
       result = @cruder_engine.read(table_name,verb,find_tag(url, 3),http_body)
-
       result.to_json
     when "POST"
       insert_json = JSON.parse(http_body.not_nil!.gets_to_end)

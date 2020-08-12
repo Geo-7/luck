@@ -2,9 +2,18 @@ require "pg"
 require "./cruder"
 
 class CruderPostgres < Cruder
-    @db : DB::Database
+    getter db : DB::Database
     def initialize(db_url : String)
-        @db = DB.open(db_url)
+      db : DB::Database
+        begin
+          db = DB.open(db_url.not_nil!)
+          Log.info &.emit "Connected to PostgreSQL"
+        rescue ex
+          Log.info &.emit "#{ex}"
+          abort("Could not connect to db")
+        end
+        @db = db.not_nil!
+        @db.exec("CREATE TABLE IF NOT EXISTS luck_object(id serial,name varchar,definition json)")
     end
     def read(table_name,verb,id,http_body)
         result = [] of JSON::Any

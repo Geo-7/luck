@@ -4,12 +4,15 @@ describe LuckConfig do
     it "Decrypts a data with aes-256-cbc algoritm" do
       key = "RANDOM1400vat2412armAMDbobomiz44"
       iv = "rtyu2000tpk43320"
-      LuckConfig.decrypt(Base64.decode("7DU1IDYjkyB9ZvGYBdv2HQ"), key, iv).should eq "luck:myDBpass57"
+      config = LuckConfig.new
+      config.decrypt(Base64.decode("7DU1IDYjkyB9ZvGYBdv2HQ"), key, iv).should eq "luck:myDBpass57"
     end
   end
 end
 describe APIParser do
-  ap = APIParser.new(*LuckConfig.get_env)
+  config = LuckConfig.new
+  db_crud = CruderSqlite3.new(config.db_url.not_nil!)
+  ap = APIParser.new(config.listen_port, db_crud, config.db_engine)
   describe "find_tag" do
     it "find URL part which seperated by /" do
       ap.find_tag("podtan.com/api", 1).should eq "api"
@@ -93,7 +96,7 @@ describe APIParser do
   end
   describe "cast_type" do
     it "Get a value and cast it to proper type" do
-      cr = CruderSqlite3.new(ap.db_url.not_nil!)
+      cr = CruderSqlite3.new(config.db_url.not_nil!)
       cr.cast_type("false").should be_false
       cr.cast_type("true").should be_true
       cr.cast_type("2").should eq 2.0
@@ -102,10 +105,11 @@ describe APIParser do
   end
   describe "make_filter_str" do
     it "make criterial for select statment" do
+      cr = CruderPostgres.new(config.db_url.not_nil!)
       table_json = JSON.parse %({"name": "Matrix","genre": "SCI-FI"})
-      str, args = ap.make_filter_str("Movie", table_json)
-      str.should  eq "name=$1 and genre=$2"
-      args.should  eq ["Matrix", "SCI-FI"]
+      str, args = cr.make_filter_str("Movie", table_json)
+      str.should eq "name=$1 and genre=$2"
+      args.should eq ["Matrix", "SCI-FI"]
     end
   end
 end
@@ -113,12 +117,19 @@ end
 # #Integration Tests goes here
 integration_test = ENV["integration_test"] ||= "false"
 table_name = "movie" + Time.utc.to_s("%s")
-luck_header = HTTP::Headers{"User-Agent"=>"Crystal"}
+luck_header = HTTP::Headers{"User-Agent" => "Crystal"}
 channel = Channel(Nil).new
-if integration_test !=false
+config = LuckConfig.new
+db_crud = CruderSqlite3.new(config.db_url.not_nil!)
+case config.db_engine
+when "postgres"
+  db_crud = CruderPostgres.new(config.db_url.not_nil!)
+end
+if integration_test != false
   spawn same_thread: false do
-    ap = APIParser.new(*LuckConfig.get_env)
-    ap.start
+    Log.info { "Program started" }
+    api = APIParser.new(config.listen_port, db_crud, config.db_engine)
+    api.start
   end
   spawn same_thread: false do
     i = 3
@@ -127,13 +138,13 @@ if integration_test !=false
       sleep(1)
       i -= 1
     end
-    it "raise an error if table definition is nil" do 
+    it "raise an error if table definition is nil" do
       response = HTTP::Client.post("127.0.0.1:5800/object/#{table_name}", luck_header)
       response.body.should eq %({"error":true,"description":"table definition is null","err_id":1})
     end
     it "POST an invalid json for creating table" do
       data = %({"name": "varchar", "id": "varchar"})
-      response = HTTP::Client.post("http://127.0.0.1:5800/object/#{table_name}",luck_header, data)
+      response = HTTP::Client.post("http://127.0.0.1:5800/object/#{table_name}", luck_header, data)
       response.body.should eq %({"error":true,"description":"could not create table","err_id":2})
     end
     channel.send(nil)
@@ -183,7 +194,7 @@ if integration_test == "sqlite3"
 end
 if integration_test == "postgres"
   spawn do
-    luck_header = HTTP::Headers{"User-Agent"=>"Crystal"}
+    luck_header = HTTP::Headers{"User-Agent" => "Crystal"}
     describe "POST /object/table_name" do
       it "POST a table json and make a table" do
         data = %({"name": "varchar", "genre": "varchar"})
@@ -234,32 +245,31 @@ if integration_test == "postgres"
     end
     it "Checks if filter works fine" do
       json_str = %({"name": "Matrix", "genre": "SCI-FI"})
-      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",luck_header,json_str)
-      response.body.should eq %({"id":2}) 
+      response = HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist", luck_header, json_str)
+      response.body.should eq %({"id":2})
     end
     it "Checks if filter works fine" do
       json_str = %({"name": "Matrix"})
-      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",luck_header,json_str)
-      response.body.should eq %({"id":2}) 
+      response = HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist", luck_header, json_str)
+      response.body.should eq %({"id":2})
     end
     it "Checks if filter works fine" do
       json_str = %({"genre": "SCI-FI"})
-      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",luck_header,json_str)
-      response.body.should eq %({"id":2}) 
+      response = HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist", luck_header, json_str)
+      response.body.should eq %({"id":2})
     end
     it "Checks if filter works fine" do
       json_str = %({"genre": "Romance"})
-      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",luck_header,json_str)
-      response.body.should eq %({"id":1}) 
+      response = HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist", luck_header, json_str)
+      response.body.should eq %({"id":1})
     end
     it "Checks if filter works fine" do
       json_str = %({"name": "her"})
-      response =HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist",luck_header,json_str)
-      response.body.should eq %({"id":1}) 
+      response = HTTP::Client.get("http://127.0.0.1:5800/#{table_name}/Exist", luck_header, json_str)
+      response.body.should eq %({"id":1})
     end
     it "Delete the created table" do
-      ap = APIParser.new(*LuckConfig.get_env)
-      DB.open(ap.db_url).exec("DROP TABLE #{table_name}")
+      db_crud.db.exec("DROP TABLE #{table_name}")
     end
     channel.send(nil)
   end
