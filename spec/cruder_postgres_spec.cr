@@ -1,7 +1,7 @@
 config = LuckConfig.new
-if config.db_engine == "postgres"
-  describe Cruder do
-    db_crud = CruderPostgres.new(config.db_url.not_nil!)
+if config.db_engine_name == "postgres"
+  describe DBEngine do
+    db_crud = DBEnginePostgres.new(config.db_url.not_nil!)
     
     describe "make_alphanumeric" do
       it "tests if the value is safe for sql table and column name" do
@@ -50,7 +50,7 @@ if config.db_engine == "postgres"
     end
     describe "make_filter_str" do
       it "make criterial for select statment" do
-        cr = CruderPostgres.new(config.db_url.not_nil!)
+        cr = DBEnginePostgres.new(config.db_url.not_nil!)
         table_json = JSON.parse %({"name": "Matrix","genre": "SCI-FI"})
         str, args = cr.make_filter_str("Movie", table_json)
         str.should eq "name=$1 and genre=$2"
@@ -66,7 +66,7 @@ if config.db_engine == "postgres"
   channel = Channel(Nil).new
   config = LuckConfig.new
 
-  db_crud = CruderPostgres.new(config.db_url.not_nil!)
+  db_crud = DBEnginePostgres.new(config.db_url.not_nil!)
 
   if integration_test != false
     spawn same_thread: false do

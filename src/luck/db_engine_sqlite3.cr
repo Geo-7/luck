@@ -1,14 +1,13 @@
-require "pg"
-require "./cruder"
-
-class CruderPostgres < Cruder
+require "sqlite3"
+class DBEngineSqlite3 < DBEngine
   getter db : DB::Database
 
   def initialize(db_url : String)
     db : DB::Database
     begin
+      pp "HHHHHHHHH"
       db = DB.open(db_url.not_nil!)
-      Log.info &.emit "Connected to PostgreSQL"
+      Log.info &.emit "Connected to SQLite3"
     rescue ex
       Log.info &.emit "#{ex}"
       abort("Could not connect to db")
@@ -19,29 +18,48 @@ class CruderPostgres < Cruder
 
   def read(table_name, verb, id, http_body)
     result = [] of JSON::Any
-    case verb
-    when "false"
-      result = @db.query_all "select row_to_json(#{table_name}) from #{table_name}", as: JSON::Any
-    when "ID"
-      result = @db.query_one "SELECT row_to_json(#{table_name}) from #{table_name} where id =$1", id, as: JSON::Any
-    when "Exist"
-      str, a = make_filter_str(table_name, JSON.parse(http_body.not_nil!.gets_to_end))
-      result = @db.query_one "SELECT id FROM #{table_name} where #{str}", args: a, as: Int32
-      result = JSON.parse(%({"id": #{result}}))
+    result_array = [] of DB::Any
+    column_names = [] of String
+    @db.query_all "select * from #{table_name}" do |rs|
+      rs = rs.as(SQLite3::ResultSet)
+      column_names = rs.column_names
+      rs.column_names.each do
+        result_array << rs.read
+      end
     end
+    i = 0
+    j = 0
+    (result_array.size/column_names.size).to_i32.times do
+      result_json = JSON.build do |json|
+        json.object do
+          column_names.size.times do
+            json.field column_names[i], cast_type(result_array[j])
+            i += 1
+            j += 1
+          end
+        end
+      end
+      i = 0
+      result << (JSON.parse(result_json))
+    end
+    result.to_json
   end
 
-  def make_filter_str(table_name, table_json : JSON::Any)
-    i = 1
-    str = ""
-    args = [] of String
-    table_json.as_h.each do |k, v|
-      str += "#{k}=$#{i} and "
-      args << v.to_s
-      i += 1
+  # dummy reflection
+  def cast_type(value)
+    value = value.to_s
+    begin
+      value.to_f64
+    rescue exception
+      case value
+      when "false"
+        false
+      when "true"
+        true
+      else
+        value
+      end
     end
-    str = str[0..(str.size - 6)]
-    return {str, args}
   end
 
   # create query string for insert
@@ -50,7 +68,7 @@ class CruderPostgres < Cruder
       String.build { |s| table_json.as_h.each { |k| s << k[0].to_s; s << ", " } }
     column_str = column_str[0, (column_str.size - 2)]
     value_str =
-      String.build { |s| i = 0; table_json.as_h.each { |k| i += 1; s << "$#{i}, " } }
+      String.build { |s| table_json.as_h.each { |k| s << "?, " } }
     value = [] of String
     table_json.as_h.each { |k| value << k[1].to_s }
     value_str = value_str[0, (value_str.size - 2)]
@@ -64,15 +82,14 @@ class CruderPostgres < Cruder
     i = 1
     update_json.as_h.each do |k, v|
       if k != "id"
-        query += "#{k}=$#{i}, "
-
+        query += "#{k}=?, "
         i += 1
         request << v.to_s
       end
     end
     request << update_json["id"].to_s
     query = query[0, (query.size - 2)]
-    query += " WHERE id=$#{i}"
+    query += " WHERE id=?"
     {query, request}
   end
 
@@ -87,11 +104,11 @@ class CruderPostgres < Cruder
       s << table_str; s << ", "; s << make_alphanumeric(k[0].to_s); s << " "; s << k[1].to_s
     } }
 
-    {"CREATE TABLE #{make_alphanumeric(table_name)}(id SERIAL#{table_str})", error}
+    {"CREATE TABLE #{make_alphanumeric(table_name)}(id INTEGER PRIMARY KEY#{table_str})", error}
   end
 
   def delete(table_name, verb, id, http_body)
     delete_json = JSON.parse(http_body.not_nil!.gets_to_end)
-    @db.exec "DELETE from #{table_name} where id =$1", delete_json["id"].as_i64
+    @db.exec "DELETE from #{table_name} where id =?", delete_json["id"].as_i64
   end
 end

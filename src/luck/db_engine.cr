@@ -1,4 +1,4 @@
-abstract class Cruder
+abstract class DBEngine
   abstract def read(table_name, verb, id, http_body)
 
   def insert(table_name, verb, id, http_body, cr)

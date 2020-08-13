@@ -1,17 +1,16 @@
 # Luck is a headless CMS
 require "http/server"
 require "log"
-require "./luck_lib"
-require "./luck_config"
+require "./luck/*"
 module Luck
   VERSION = "0.1.0"
   Log.info {"Program started"}
   config = LuckConfig.new
-  db_crud = CruderSqlite3.new(config.db_url.not_nil!)
-  case config.db_engine
+  db_engine = DBEngineSqlite3.new(config.db_url.not_nil!)
+  case config.db_engine_name
   when "postgres"
-    db_crud = CruderPostgres.new(config.db_url.not_nil!)
+    db_engine = DBEnginePostgres.new(config.db_url.not_nil!)
   end
-  api = APIParser.new(config.listen_port,db_crud)
+  api = APIParser.new(config.listen_port,db_engine)
   api.start()
 end

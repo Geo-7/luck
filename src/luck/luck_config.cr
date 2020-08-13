@@ -1,7 +1,8 @@
 class LuckConfig
     getter listen_port = 5800
-    getter db_engine="sqlite3"
+    getter db_engine_name="sqlite3"
     getter db_url ="sqlite3://luck"
+    
   
     def get_db_connection
     end
@@ -12,8 +13,8 @@ class LuckConfig
         key = "RANDOM1400vat2412armAMDbobomiz44"
         iv = "rtyu2000tpk43320"
         db_name = ENV.["luck_db_name"] ||= "luck"
-        @db_engine = ENV.["luck_db_engine"] ||= "postgres"
-        case @db_engine
+        @db_engine_name = ENV.["luck_db_engine"] ||= "postgres"
+        case @db_engine_name
         when "postgres"
           db_host = ENV.["luck_db_host"] ||= "127.0.0.1"
           db_password = ENV.["luck_db_password"]
@@ -31,7 +32,7 @@ class LuckConfig
         ex.message
       end
       
-      #{@db_engine.not_nil!, @listen_port.not_nil!, @db_url.not_nil!}
+      #{@db_engine_name.not_nil!, @listen_port.not_nil!, @db_url.not_nil!}
     end
   
     # decrypt data

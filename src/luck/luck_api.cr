@@ -1,20 +1,17 @@
 require "json"
 require "db"
 require "log"
-require "./cruder"
-require "./cruder_sqlite3"
-require "./cruder_postgres"
-require "./luck_config"
+
 
 # APIParser parses a HTTP request and make CRUD operation
 class APIParser
   getter listen_port
-  setter cruder_engine
+  setter db_engine
 
   # reads environment variable and connect to db
-  def initialize(listen_port : Int32, cruder_engine : Cruder)
+  def initialize(listen_port : Int32, db_engine : DBEngine)
     @listen_port = listen_port
-    @cruder_engine =cruder_engine
+    @db_engine =db_engine
   end
 
   # find a verb and rest call
@@ -29,7 +26,7 @@ class APIParser
       rescue
         return {"error" => true, "description" => "table definition is null", "err_id" => 1}.to_json
       end
-      @cruder_engine.create_table(table_name, method, table_json,@cruder_engine)
+      @db_engine.create_table(table_name, method, table_json,@db_engine)
     when "nothing"
       return "noting"
     else
@@ -65,14 +62,14 @@ class APIParser
     case http_method
     when "GET"
       result = [] of JSON::Any
-      result = @cruder_engine.read(table_name,verb,find_tag(url, 3),http_body)
+      result = @db_engine.read(table_name,verb,find_tag(url, 3),http_body)
       result.to_json
     when "POST"
-      @cruder_engine.insert(table_name, verb, find_tag(url, 3), http_body,@cruder_engine)
+      @db_engine.insert(table_name, verb, find_tag(url, 3), http_body,@db_engine)
     when "PATCH"
-      @cruder_engine.update(table_name, verb, find_tag(url, 3), http_body,@cruder_engine)
+      @db_engine.update(table_name, verb, find_tag(url, 3), http_body,@db_engine)
     when "DELETE"
-      @cruder_engine.delete(table_name, verb, find_tag(url, 3), http_body)
+      @db_engine.delete(table_name, verb, find_tag(url, 3), http_body)
     end
   end
 

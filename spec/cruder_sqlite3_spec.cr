@@ -1,8 +1,8 @@
 config = LuckConfig.new
-if config.db_engine == "sqlite3"
-  describe Cruder do
+if config.db_engine_name == "sqlite3"
+  describe DBEngine do
     config = LuckConfig.new
-    db_crud = CruderSqlite3.new(config.db_url.not_nil!)
+    db_crud = DBEngineSqlite3.new(config.db_url.not_nil!)
     
     describe "make_alphanumeric" do
       it "tests if the value is safe for sql table and column name" do
@@ -64,7 +64,7 @@ if config.db_engine == "sqlite3"
   luck_header = HTTP::Headers{"User-Agent" => "Crystal"}
   channel = Channel(Nil).new
   config = LuckConfig.new
-  db_crud = CruderSqlite3.new(config.db_url.not_nil!)
+  db_crud = DBEngineSqlite3.new(config.db_url.not_nil!)
   if integration_test != false
     spawn same_thread: false do
       Log.info { "Program started" }
