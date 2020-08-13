@@ -12,6 +12,6 @@ module Luck
   when "postgres"
     db_crud = CruderPostgres.new(config.db_url.not_nil!)
   end
-  api = APIParser.new(config.listen_port,db_crud,config.db_engine)
+  api = APIParser.new(config.listen_port,db_crud)
   api.start()
 end

@@ -62,4 +62,54 @@ class CruderSqlite3 < Cruder
       end
     end
   end
+
+  # create query string for insert
+  def make_insert_str(table_name, table_json)
+    column_str =
+      String.build { |s| table_json.as_h.each { |k| s << k[0].to_s; s << ", " } }
+    column_str = column_str[0, (column_str.size - 2)]
+    value_str =
+      String.build { |s| table_json.as_h.each { |k| s << "?, " } }
+    value = [] of String
+    table_json.as_h.each { |k| value << k[1].to_s }
+    value_str = value_str[0, (value_str.size - 2)]
+    {"INSERT INTO #{table_name}(#{column_str}) values(#{value_str})", value}
+  end
+
+  # make update query string
+  def make_update_str(table_name, update_json)
+    request = [] of String
+    query = "UPDATE #{table_name} SET "
+    i = 1
+    update_json.as_h.each do |k, v|
+      if k != "id"
+        query += "#{k}=?, "
+        i += 1
+        request << v.to_s
+      end
+    end
+    request << update_json["id"].to_s
+    query = query[0, (query.size - 2)]
+    query += " WHERE id=?"
+    {query, request}
+  end
+
+  # create query for making new table
+  def make_create_table_str(table_name, table_json)
+    table_str = ""
+    error = false
+    table_json.as_h.each { |k| if k[0].to_s.downcase == "id"
+      error = true
+    end
+    table_str = String.build { |s|
+      s << table_str; s << ", "; s << make_alphanumeric(k[0].to_s); s << " "; s << k[1].to_s
+    } }
+
+    {"CREATE TABLE #{make_alphanumeric(table_name)}(id INTEGER PRIMARY KEY#{table_str})", error}
+  end
+
+  def delete(table_name, verb, id, http_body)
+    delete_json = JSON.parse(http_body.not_nil!.gets_to_end)
+    @db.exec "DELETE from #{table_name} where id =?", delete_json["id"].as_i64
+  end
 end
