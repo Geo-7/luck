@@ -1,11 +1,11 @@
 require "sqlite3"
+
 class DBEngineSqlite3 < DBEngine
   getter db : DB::Database
 
   def initialize(db_url : String)
     db : DB::Database
     begin
-      pp "HHHHHHHHH"
       db = DB.open(db_url.not_nil!)
       Log.info &.emit "Connected to SQLite3"
     rescue ex
@@ -17,16 +17,38 @@ class DBEngineSqlite3 < DBEngine
   end
 
   def read(table_name, verb, id, http_body)
-    result = [] of JSON::Any
     result_array = [] of DB::Any
     column_names = [] of String
-    @db.query_all "select * from #{table_name}" do |rs|
-      rs = rs.as(SQLite3::ResultSet)
-      column_names = rs.column_names
-      rs.column_names.each do
-        result_array << rs.read
+    case verb
+    when "false"
+      @db.query_all "select * from #{table_name}" do |rs|
+        rs = rs.as(SQLite3::ResultSet)
+        column_names = rs.column_names
+        rs.column_names.each do
+          result_array << rs.read
+        end
       end
+      make_json(result_array,column_names)
+    when "ID"
+      @db.query_one "SELECT * FROM #{table_name} where id =?",id do |rs|
+        rs =rs.as SQLite3::ResultSet
+        column_names =rs.column_names
+        rs.column_names.each do
+          result_array << rs.read
+        end
+      end
+      make_json(result_array,column_names)
+    when "Exist"
+      str, a = make_filter_str(table_name, JSON.parse(http_body.not_nil!.gets_to_end))
+      result = @db.query_one "SELECT id FROM #{table_name} where #{str}", args: a, as: Int64
+      result = JSON.parse(%({"id": #{result}}))
     end
+
+    
+  end
+
+  def make_json(result_array,column_names)
+    result = [] of JSON::Any
     i = 0
     j = 0
     (result_array.size/column_names.size).to_i32.times do
@@ -42,14 +64,29 @@ class DBEngineSqlite3 < DBEngine
       i = 0
       result << (JSON.parse(result_json))
     end
-    result.to_json
+    if result.size == 1
+      result[0]
+    else
+      result
+    end
+  end
+
+  def make_filter_str(table_name, table_json : JSON::Any)
+    str = ""
+    args = [] of String
+    table_json.as_h.each do |k, v|
+      str += "#{k}=? and "
+      args << v.to_s
+    end
+    str = str[0..(str.size - 6)]
+    return {str, args}
   end
 
   # dummy reflection
   def cast_type(value)
     value = value.to_s
     begin
-      value.to_f64
+      value.to_i64
     rescue exception
       case value
       when "false"
