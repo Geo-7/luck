@@ -10,6 +10,7 @@ class DBEngineSqlite3 < DBEngine
       Log.info &.emit "Connected to SQLite3"
     rescue ex
       Log.info &.emit "#{ex}"
+      pp ex.message
       abort("Could not connect to db")
     end
     @db = db.not_nil!

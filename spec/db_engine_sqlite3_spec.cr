@@ -1,7 +1,6 @@
 config = LuckConfig.new
 if config.db_engine_name == "sqlite3"
   describe DBEngine do
-    config = LuckConfig.new
     db_crud = DBEngineSqlite3.new(config.db_url.not_nil!)
     
     describe "make_alphanumeric" do

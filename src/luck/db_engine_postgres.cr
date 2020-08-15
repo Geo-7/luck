@@ -9,6 +9,7 @@ class DBEnginePostgres < DBEngine
       Log.info &.emit "Connected to PostgreSQL"
     rescue ex
       Log.info &.emit "#{ex}"
+      pp ex.message
       abort("Could not connect to db")
     end
     @db = db.not_nil!

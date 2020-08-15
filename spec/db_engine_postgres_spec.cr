@@ -1,3 +1,4 @@
+require "pg"
 config = LuckConfig.new
 if config.db_engine_name == "postgres"
   describe DBEngine do
