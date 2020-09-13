@@ -17,7 +17,7 @@ class DBEngineSqlite3 < DBEngine
     @db.exec("CREATE TABLE IF NOT EXISTS luck_object(id serial,name varchar,definition json)")
   end
 
-  def read(table_name, verb, id, http_body)
+  def read(table_name, verb, id)
     result_array = [] of DB::Any
     column_names = [] of String
     case verb
@@ -29,26 +29,26 @@ class DBEngineSqlite3 < DBEngine
           result_array << rs.read
         end
       end
-      make_json(result_array,column_names)
+      make_json(result_array, column_names)
     when "ID"
-      @db.query_one "SELECT * FROM #{table_name} where id =?",id do |rs|
-        rs =rs.as SQLite3::ResultSet
-        column_names =rs.column_names
+      @db.query_one "SELECT * FROM #{table_name} where id =?", id do |rs|
+        rs = rs.as SQLite3::ResultSet
+        column_names = rs.column_names
         rs.column_names.each do
           result_array << rs.read
         end
       end
-      make_json(result_array,column_names)
-    when "Exist"
-      str, a = make_filter_str(table_name, JSON.parse(http_body.not_nil!.gets_to_end))
-      result = @db.query_one "SELECT id FROM #{table_name} where #{str}", args: a, as: Int64
-      result = JSON.parse(%({"id": #{result}}))
+      make_json(result_array, column_names)
     end
-
-    
   end
 
-  def make_json(result_array,column_names)
+  def read(table_name, verb, id, http_body)
+    str, a = make_filter_str(table_name, JSON.parse(http_body.not_nil!))
+    result = @db.query_one "SELECT id FROM #{table_name} where #{str}", args: a, as: Int64
+    result = JSON.parse(%({"id": #{result}}))
+  end
+
+  def make_json(result_array, column_names)
     result = [] of JSON::Any
     i = 0
     j = 0

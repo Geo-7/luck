@@ -1,4 +1,5 @@
 require "pg"
+
 class DBEnginePostgres < DBEngine
   getter db : DB::Database
 
@@ -16,18 +17,20 @@ class DBEnginePostgres < DBEngine
     @db.exec("CREATE TABLE IF NOT EXISTS luck_object(id serial,name varchar,definition json)")
   end
 
-  def read(table_name, verb, id, http_body)
+  def read(table_name, verb, id)
     result = [] of JSON::Any
     case verb
     when "false"
       result = @db.query_all "select row_to_json(#{table_name}) from #{table_name}", as: JSON::Any
     when "ID"
       result = @db.query_one "SELECT row_to_json(#{table_name}) from #{table_name} where id =$1", id, as: JSON::Any
-    when "Exist"
-      str, a = make_filter_str(table_name, JSON.parse(http_body.not_nil!.gets_to_end))
-      result = @db.query_one "SELECT id FROM #{table_name} where #{str}", args: a, as: Int32
-      result = JSON.parse(%({"id": #{result}}))
     end
+  end
+
+  def read(table_name, verb, id, http_body)
+    str, a = make_filter_str(table_name, JSON.parse(http_body.not_nil!))
+    result = @db.query_one "SELECT id FROM #{table_name} where #{str}", args: a, as: Int32
+    result = JSON.parse(%({"id": #{result}}))
   end
 
   def make_filter_str(table_name, table_json : JSON::Any)
